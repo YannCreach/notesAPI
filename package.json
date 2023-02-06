@@ -10,28 +10,28 @@
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "createDB": "psql -U notesadmin -d notesdb -f ./db/create_db.sql",
-    "seedDB": "psql -U notesadmin -d notesdb -f ./db/seed_db.sql",
+    "seedDB": "psql -U notesadmin -d notesdb -f ./db/seed_db.sql"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/O-clock-Flamel/S06-oKanban-YannCreach.git"
+    "url": "git+https://github.com/YannCreach/notesAPI.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/O-clock-Flamel/S06-oKanban-YannCreach/issues"
+    "url": "https://github.com/YannCreach/notesAPI/issues"
   },
-  "homepage": "https://github.com/O-clock-Flamel/S06-oKanban-YannCreach#readme",
+  "homepage": "https://github.com/YannCreach/notesAPI/#readme",
   "dependencies": {
     "assert": "^2.0.0",
-    "browserify": "^17.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
+    "express-jwt": "^8.4.0",
+    "express-oauth2-jwt-bearer": "^1.3.0",
+    "helmet": "^6.0.1",
+    "jwks-rsa": "^3.0.1",
     "pg": "^8.7.3",
-    "pg-hstore": "^2.3.4",
-    "sequelize": "^6.21.3",
-    "sortablejs": "^1.15.0",
-    "tinyify": "^3.1.0"
+    "sequelize": "^6.21.3"
   }
 }
