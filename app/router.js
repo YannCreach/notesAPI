@@ -1,25 +1,42 @@
 const express = require('express');
 const path = require('path');
-const factoController = require('./controllers/factoController');
-const assocController = require('./controllers/assocController');
+const noteController = require('./controllers/noteController')
+// const userController = require('./controllers/userController');
+const placeController = require('./controllers/placeController');
+// const uploadController = require('./controllers/uploadController');
+// const { checkJwt } = require("../src/authz/check-jwt");
 
 const router = express.Router();
+
+
+
+// Users
+// router.get('/user', userController.loginUser);
+// router.post('/user', userController.registerUser);
+// router.patch('/user', userController.updateUser);
+// router.delete('/user', userController.deleteUser);
+
+// Places
+router.get('/places', placeController.getAllPlaces);
+router.get('/place', placeController.getPlaceById);
+// router.post('/place', placeController.createPlace);
+// router.patch('/place', placeController.updatePlace);
+// router.delete('/place', placeController.deletePlace);
+
+// Notes
+router.get('/notes', noteController.getAllNotes);
+router.get('/note', noteController.getNoteById);
+// router.post('/note', noteController.createNote);
+// router.patch('/note', noteController.updateNote);
+// router.delete('/note', noteController.deleteNote);
 
 router.get('/', (req, res) => {
 	let filePath = path.join(__dirname, '../index.html');
 	res.sendFile(filePath);
 });
 
-router.get('/api/:entity', factoController.getAll);
-// get all list from kanban id (ou all avec un where ?)
-// get all cart from list id (ou all avec un where ?)
-router.get('/api/:entity/:id', factoController.getOne);
-router.post('/api/:entity', factoController.create);
-router.patch('/api/:entity/:id', factoController.update);
-router.delete('/api/:entity/:id', factoController.delete);
-
-router.post('/:assoc/:assocId/:entity/:entityId', assocController.createAssoc);
-router.delete('/:assoc/:entity/:id', assocController.deleteAssoc);
+// Upload
+// router.post('/upload', authMiddleware.checkToken, controllerUpload.uploadImage);
 
 
 module.exports = router;

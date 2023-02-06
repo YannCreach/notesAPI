@@ -17,7 +17,7 @@ CREATE TABLE "user" (
     "updated_at" TIMESTAMPTZ
 );
 
-CREATE TABLE "restaurant" (
+CREATE TABLE "place" (
     "id" INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "name" TEXT NOT NULL,
     "slug" TEXT,
@@ -31,30 +31,30 @@ CREATE TABLE "restaurant" (
     "updated_at" TIMESTAMPTZ
 );
 
-CREATE TABLE "tag_restaurant" (
+CREATE TABLE "tag_place" (
     "id" INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "label" text,
-    "tag_restaurant_id" INT NOT NULL REFERENCES "restaurant" ("id") ON DELETE CASCADE,
+    "tag_place_id" INT NOT NULL REFERENCES "place" ("id") ON DELETE CASCADE,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMPTZ
 );
 
-CREATE TABLE "meal" (
+CREATE TABLE "note" (
     "id" INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "name" TEXT NOT NULL,
     "slug" TEXT,
     "photo_url" TEXT ,
     "favorite" BOOLEAN DEFAULT false,
     "review" TEXT,
-    "meal_restaurant_id" INT NOT NULL REFERENCES "restaurant" ("id") ON DELETE CASCADE, 
+    "note_place_id" INT NOT NULL REFERENCES "place" ("id") ON DELETE CASCADE, 
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMPTZ
 );
 
-CREATE TABLE "tag_meal" (
+CREATE TABLE "tag_note" (
     "id" INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "label" text,
-    "tag_meal_id" INT NOT NULL REFERENCES "meal" ("id") ON DELETE CASCADE,
+    "tag_note_id" INT NOT NULL REFERENCES "note" ("id") ON DELETE CASCADE,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMPTZ
 );
@@ -64,7 +64,7 @@ CREATE TABLE "memento" (
     "name" TEXT NOT NULL,
     "content" TEXT,
     "reminder" INT,
-    "memento_restaurant_id" INT NOT NULL REFERENCES "restaurant" ("id") ON DELETE CASCADE, 
+    "memento_place_id" INT NOT NULL REFERENCES "place" ("id") ON DELETE CASCADE, 
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMPTZ
 );

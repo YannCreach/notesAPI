@@ -1,15 +1,15 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../database');
 
-class Tag extends Model {}
+class Category extends Model {}
 
-Tag.init({
+Category.init({
   label: {
     type: DataTypes.STRING(255)
   },
 }, {
   sequelize,
-  tableName: 'tag',
+  tableName: 'category',
 });
 
-module.exports = Tag;
+module.exports = Category;

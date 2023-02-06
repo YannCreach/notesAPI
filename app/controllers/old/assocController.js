@@ -1,7 +1,7 @@
 const assert = require('assert');
 const entityDefinition = require('./entityDefinition');
 const entities = ['cart', 'color', 'kanban', 'list', 'role', 'status', 'tag', 'utilisateur'];
-const { Cart, List, Tag } = require('../models');
+const { Cart, List, Tag } = require('../../models');
 
 const tagAssocController = {
 
