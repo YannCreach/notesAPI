@@ -1,15 +1,15 @@
-const { Place } = require('../models');
+const { Place, Category } = require('../models');
 const assert = require('assert');
 
 
 class placeController {
 
   static async getAllPlaces(req, res) {
-    // assert.ok('user_id' in req.body, 'A user ID is required');
     try {
       const places = await Place.findAll({
+        include: ["place_category"],
         where: {
-          user_id: req.headers.userid
+          user_id: req.auth.payload.sub
         }
       });
       res.status(200).json({ places });
@@ -17,12 +17,30 @@ class placeController {
       res.status(500).json({ message: error.message });
     }
   }
+
+  static async getAllCategories(req, res) {
+    try {
+      const categories = await Category.findAll({
+        include: [{
+          model: "category_place",
+          where: { user_id: req.auth.payload.sub }
+        }],
+      });
+      res.status(200).json({ categories });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
   
   static async getPlaceById(req, res) {
-    // assert.ok('id' in req.body, 'A user ID is required');
     try {
-      const { id } = req.body;
-      const place = await Place.findByPk(id);
+      const { placeid } = req.headers;
+      const place = await Place.findOne({
+        where: { 
+          id: placeid,
+          user_id: req.auth.payload.sub,
+        },
+      });
       if (place) {
         res.status(200).json({ place });
       } else {
@@ -45,22 +63,26 @@ class placeController {
   //   }
   // }
 
-  // static async updatePlace(req, res) {
-  //   try {
-  //     const { id } = req.params;
-  //     const { name, email } = req.body;
-  //     const [updated] = await Place.update({ name, email }, { where: { id } });
-  //     if (updated) {
-  //       const updatedUser = await User.findByPk(id);
-  //       res.status(200).json({ user: updatedUser });
-  //     } else {
-  //       res.status(404).json({ message: 'User not found' });
-  //     }
-  //   } catch (error) {
-  //     console.trace(error);
-  //     res.status(500).json({ message: error.message });
-  //   }
-  // }
+  static async updatePlace(req, res) {
+    try {
+      console.log(req.headers);
+      const { placeid, favorite } = req.headers;
+      const updated = await Place.update({ favorite }, { where: { 
+        id: placeid,
+        user_id: req.auth.payload.sub,
+      }, });
+      
+      if (updated) {
+        const updatedPlace = await Place.findByPk(placeid);
+        res.status(200).json({ place: updatedPlace });
+      } else {
+        res.status(404).json({ message: 'Place not found' });
+      }
+    } catch (error) {
+      console.trace(error);
+      res.status(500).json({ message: error.message });
+    }
+  }
 
   // static async deletePlace(req, res) {
   //   try {

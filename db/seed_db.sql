@@ -1,25 +1,33 @@
 BEGIN;
 
-INSERT INTO public.user ("id", "username", "email", "password", "colorscheme") VALUES
-(1, 'Yann', 'yann@notes.io', 'password', true),
-(2, 'Jennifer', 'jenny@notes.io', 'password', false);
+-- INSERT INTO public.user ("id", "username", "email", "password", "colorscheme") VALUES
+-- (1, 'Yann', 'yann@notes.io', 'password', true),
+-- (2, 'Jennifer', 'jenny@notes.io', 'password', false);
 
-INSERT INTO "place" ("id", "user_id", "name", "adress", "coordinates", "favorite", "opening", "comment", "category_id") VALUES
-(1, 1,'Mc Donalds', 'lannion', '21.23124 - 32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 1),
-(2, 1,'Basilico', 'Perros', '21.23124 - 32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 1),
-(3, 1,'KFC', 'Plerin', '21.23124 - 32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 1),
-(4, 1,'Atmosphere', 'Lannion', '21.23124 - 32.34223', true, '13:00 - 00:00', 'Très bon et très original !', 2);
+INSERT INTO "place" ("id", "user_id", "name", "adress", "lat", "lng", "favorite", "opening", "comment", "category_id") VALUES
+(1, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Mc Donalds', 'lannion', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
+(2, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Basilico', 'Perros', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
+(3, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'KFC', 'Plerin', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
+(4, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Atmosphere', 'Lannion', '21.23124', '32.34223', true, '13:00 - 00:00', 'Très bon et très original !', 7);
 
-INSERT INTO "note" ("id", "place_id", "name", "price", "favorite", "comment") VALUES
-(1, 1, '280', '6,50€', true, 'ultra light'),
-(2, 1, 'McWrap', '5,50€', true, 'trop bon'),
-(3, 3, 'BoxMaster', '3,50€', true, 'ultra light'),
-(4, 3, 'BoxMaster Maxx', '6,50€', false, 'ultra light aussi');
+INSERT INTO "note" ("id", "user_id", "place_id", "name", "price", "favorite", "comment") VALUES
+(1, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 1, '280', '6,50€', true, 'ultra light'),
+(2, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 1, 'McWrap', '5,50€', true, 'trop bon'),
+(3, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 3, 'BoxMaster', '3,50€', true, 'ultra light'),
+(4, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 3, 'BoxMaster Maxx', '6,50€', false, 'ultra light aussi');
 
 INSERT INTO "category" ("id", "label") VALUES
-(1, 'Place'),
-(2, 'Bar'),
-(3, 'Cinema');
+(1, 'Cinema'),
+(2, 'Restaurant'),
+(3, 'Hotel'),
+(4, 'Boulangerie'),
+(5, 'Musique'),
+(6, 'Nature'),
+(7, 'Bar'),
+(8, 'Poissonnerie'),
+(9, 'Primeur'),
+(10, 'Coiffeur'),
+(11, 'Divers');
 
 INSERT INTO "tag" ("id", "label") VALUES
 (1, 'Top'), 

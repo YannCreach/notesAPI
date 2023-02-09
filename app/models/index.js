@@ -1,4 +1,3 @@
-const User = require('./user');
 const Place = require('./place');
 const Note = require('./note');
 const Category = require('./category');
@@ -12,16 +11,6 @@ const Tag = require('./tag');
 // To create a One-To-One relationship, the hasOne and belongsTo associations are used together;
 // To create a One-To-Many relationship, the hasMany and belongsTo associations are used together;
 // To create a Many-To-Many relationship, two belongsToMany calls are used together.
-
-
-User.hasMany(Place, { // a user has Many places
-  foreignKey: 'user_id',
-  as: 'user_place'
-}); 
-Place.belongsTo(User, { // a place has One user
-  foreignKey: 'user_id',
-  as: 'place_user'
-}); 
 
 
 Place.hasMany(Note, { // a place has Many notes
@@ -75,4 +64,4 @@ Tag.belongsToMany(Note, { // a tag has many note
   timestamps: false
 });
 
-module.exports = { User, Place, Note, Category, Tag };
+module.exports = { Place, Note, Category, Tag };
