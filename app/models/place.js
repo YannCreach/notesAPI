@@ -1,6 +1,5 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../database');
-const User = require('./user');
 
 class Place extends Model {}
 
@@ -11,8 +10,11 @@ Place.init({
   adress: {
     type: DataTypes.STRING(255)
   },                          
-  coordinates: {
-    type: DataTypes.STRING(50)
+  lat: {
+    type: DataTypes.DOUBLE
+  },
+  lng: {
+    type: DataTypes.DOUBLE
   },
   cover: {
     type: DataTypes.STRING(255)
@@ -30,18 +32,10 @@ Place.init({
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: '0',
-    references: {
-      model: User,
-      key: 'id',
-    }
   },
   user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING(255),
     allowNull: false,
-    references: {
-      model: User,
-      key: 'id',
-    }
   },
 }, {
   sequelize,
