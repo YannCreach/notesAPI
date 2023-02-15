@@ -37,6 +37,9 @@ Place.init({
     type: DataTypes.STRING(255),
     allowNull: false,
   },
+  rating: {
+    type: DataTypes.INTEGER,
+  },
 }, {
   sequelize,
   tableName: 'place',

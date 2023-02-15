@@ -17,6 +17,9 @@ router.patch('/user', userController.updateColorscheme);
 // Places
 router.get('/places', placeController.getAllPlaces);
 router.get('/place', placeController.getPlaceById);
+router.get('/latestplaces', placeController.getLatestPlaces);
+router.get('/category', placeController.getPlacesByCategory);
+
 // router.post('/place', placeController.createPlace);
 router.patch('/place', placeController.updatePlace);
 // router.delete('/place', placeController.deletePlace);
