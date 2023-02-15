@@ -69,7 +69,7 @@ class placeController {
     try {
       const { placeid } = req.headers;
       const place = await Place.findOne({
-        include: ["place_note"],
+        include: ["place_note", "place_tag"],
         where: { 
           id: placeid,
           user_id: req.auth.payload.sub,
