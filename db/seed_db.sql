@@ -4,11 +4,11 @@ BEGIN;
 -- (1, 'Yann', 'yann@notes.io', 'password', true),
 -- (2, 'Jennifer', 'jenny@notes.io', 'password', false);
 
-INSERT INTO "place" ("id", "user_id", "name", "adress", "lat", "lng", "favorite", "opening", "comment", "category_id") VALUES
-(1, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Mc Donalds', 'lannion', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
-(2, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Basilico', 'Perros', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
-(3, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'KFC', 'Plerin', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2),
-(4, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Atmosphere', 'Lannion', '21.23124', '32.34223', true, '13:00 - 00:00', 'Très bon et très original !', 7);
+INSERT INTO "place" ("id", "user_id", "name", "adress", "lat", "lng", "favorite", "opening", "comment", "category_id", "rating") VALUES
+(1, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Mc Donalds', 'lannion', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2, 4),
+(2, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Basilico', 'Perros', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2, 5),
+(3, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'KFC', 'Plerin', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2, 3),
+(4, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 'Atmosphere', 'Lannion', '21.23124', '32.34223', true, '13:00 - 00:00', 'Très bon et très original !', 7, 5);
 
 INSERT INTO "note" ("id", "user_id", "place_id", "name", "price", "favorite", "comment") VALUES
 (1, 'auth0|auth0|63e218f517cae1bd6ff4d1bb', 1, '280', '6,50€', true, 'ultra light'),

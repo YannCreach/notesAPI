@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS "place" (
     "lat" DOUBLE PRECISION,
     "lng" DOUBLE PRECISION,
     "cover" VARCHAR(255),
+    "rating" INTEGER,
     "favorite" BOOLEAN NOT NULL DEFAULT FALSE,
     "opening" VARCHAR(255),
     "comment" TEXT,

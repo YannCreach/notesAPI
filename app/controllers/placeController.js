@@ -22,11 +22,44 @@ class placeController {
     try {
       const categories = await Category.findAll({
         include: [{
-          model: "category_place",
-          where: { user_id: req.auth.payload.sub }
+          model: Place,
+          as: "category_place",
+          where: { user_id: req.auth.payload.sub },
+          required: false
         }],
       });
       res.status(200).json({ categories });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async getPlacesByCategory(req, res) {
+    const { categoryid } = req.headers;
+    try {
+      const places = await Place.findAll({
+        include: ["place_category"],
+        where: {
+          user_id: req.auth.payload.sub,
+          category_id: categoryid },
+      });
+      res.status(200).json({ places });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async getLatestPlaces(req, res) {
+    try {
+      const places = await Place.findAll({
+        include: ["place_category"],
+        where: {
+          user_id: req.auth.payload.sub,
+        },
+        order: [["created_at", "DESC"]],
+        limit: 9,
+      });
+      res.status(200).json({ places });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -36,6 +69,7 @@ class placeController {
     try {
       const { placeid } = req.headers;
       const place = await Place.findOne({
+        include: ["place_note"],
         where: { 
           id: placeid,
           user_id: req.auth.payload.sub,
