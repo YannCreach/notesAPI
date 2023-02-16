@@ -1,6 +1,7 @@
 const { Place, Category } = require('../models');
-const assert = require('assert');
-
+// const assert = require('assert');
+const axios = require('axios');
+const yelpApiKey = process.env.YELP_API_KEY;
 
 class placeController {
 
@@ -65,6 +66,46 @@ class placeController {
     }
   }
   
+  // static async getPlaceById(req, res) {
+  //   let placeData = {};
+  //   try {
+  //     const { placeid } = req.headers;
+  //     const place = await Place.findOne({
+  //       include: ["place_note", "place_tag"],
+  //       where: { 
+  //         id: placeid,
+  //         user_id: req.auth.payload.sub,
+  //       },
+  //     });
+  //     placeData = place.dataValues;
+
+  //     if (placeData.yelpid){
+  //       try {
+  //         const yelpData = await axios.get(
+  //           `https://api.yelp.com/v3/businesses/${placeData.yelpid}`,
+  //           {
+  //             headers: {
+  //               authorization: `Bearer ${yelpApiKey}`,
+  //               accept: 'application/json',
+  //             },
+  //           },
+  //         );
+  //         placeData = {...placeData, ...yelpData.data};
+  //         res.status(200).json({ placeData });
+  //       }
+  //       catch (err) {
+  //         console.log(`Yelp data not found: ${err}`);
+  //       }
+  //     } else {
+  //       res.status(200).json({ placeData });
+  //     }
+
+  //   } catch (err) {
+  //     console.log(`Place data not found: ${err}`);
+  //     res.status(500).json({ message: err.message });
+  //   }
+  // }
+
   static async getPlaceById(req, res) {
     try {
       const { placeid } = req.headers;
@@ -75,14 +116,38 @@ class placeController {
           user_id: req.auth.payload.sub,
         },
       });
-      if (place) {
-        res.status(200).json({ place });
-      } else {
-        res.status(404).json({ message: 'Place not found' });
+  
+      if (!place) {
+        return res.status(404).json({ message: "Place not found" });
       }
-    } catch (error) {
-      console.trace(error);
-      res.status(500).json({ message: error.message });
+  
+      
+      let placeData = {...place.dataValues};
+      
+      if (placeData.yelpid) {
+        try {
+          const yelpData = await axios.get(
+            `https://api.yelp.com/v3/businesses/${placeData.yelpid}`,
+            {
+              headers: {
+                Authorization: `Bearer ${yelpApiKey}`,
+                Accept: 'application/json',
+              },
+            },
+          );
+          placeData = { ...placeData, yelp:{...yelpData.data} };
+          
+        }
+        catch (err) {
+          console.log(`Yelp data not found: ${err}`);
+        }
+      }
+      //console.log(placeData);
+      res.status(200).json(placeData);
+    }
+    catch (err) {
+      console.log(`Error retrieving place data: ${err}`);
+      res.status(500).json({ message: "Internal server error" });
     }
   }
 

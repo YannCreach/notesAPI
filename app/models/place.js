@@ -10,10 +10,10 @@ Place.init({
   adress: {
     type: DataTypes.STRING(255)
   },                          
-  lat: {
+  latitude: {
     type: DataTypes.DOUBLE
   },
-  lng: {
+  longitude: {
     type: DataTypes.DOUBLE
   },
   cover: {
@@ -39,6 +39,10 @@ Place.init({
   },
   rating: {
     type: DataTypes.INTEGER,
+  },
+  yelpid: {
+    type: DataTypes.STRING(50),
+    unique: true,
   },
 }, {
   sequelize,
