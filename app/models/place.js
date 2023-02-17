@@ -9,7 +9,13 @@ Place.init({
   },
   adress: {
     type: DataTypes.STRING(255)
-  },                          
+  },
+  city: {
+    type: DataTypes.STRING(50)
+  },
+  zip: {
+    type: DataTypes.INTEGER
+  },                   
   latitude: {
     type: DataTypes.DOUBLE
   },
