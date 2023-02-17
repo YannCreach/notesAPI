@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS "place" (
     "user_id" VARCHAR(255) NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "adress" VARCHAR(255),
+    "city" VARCHAR(50),
+    "zip" INTEGER,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
     "cover" VARCHAR(255),
