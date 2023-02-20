@@ -31,7 +31,7 @@ router.get('/categories', placeController.getAllCategories);
 router.get('/notes', noteController.getAllNotes);
 router.get('/note', noteController.getNoteById);
 // router.post('/note', noteController.createNote);
-// router.patch('/note', noteController.updateNote);
+router.patch('/note', noteController.updateNote);
 // router.delete('/note', noteController.deleteNote);
 
 router.get('/', (req, res) => {
