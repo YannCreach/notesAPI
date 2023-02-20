@@ -8,6 +8,10 @@ Note.init({
   name: {
     type: DataTypes.STRING(255)
   },
+  user_id: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+  },
   price: {
     type: DataTypes.STRING(50)
   },                          

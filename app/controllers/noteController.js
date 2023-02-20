@@ -45,6 +45,27 @@ class noteController {
   //   }
   // }
 
+  static async updateNote(req, res) {
+    try {
+      // console.log(req.headers);
+      const { noteid, favorite } = req.headers;
+      const updated = await Note.update({ favorite }, { where: { 
+        id: noteid,
+        user_id: req.auth.payload.sub,
+      }, });
+      
+      if (updated) {
+        const updatedNote = await Note.findByPk(noteid);
+        res.status(200).json({ note: updatedNote });
+      } else {
+        res.status(404).json({ message: 'Note not found' });
+      }
+    } catch (error) {
+      console.trace(error);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   // static async updateNote(req, res) {
   //   try {
   //     const { id } = req.params;

@@ -10,7 +10,7 @@ INSERT INTO "place" ("id", "yelpid", "user_id", "name", "adress", "city", "zip",
 (3, 'la-saint-georges-rennes', 'auth0|63e218f517cae1bd6ff4d1bb', 'La Saint Georges', 'Adresse fictive StGeorges', 'Lannion', '22300', '21.23124', '32.34223', true, '8:00 - 19:00', 'Très bon et très original !', 2, 3),
 (4, 'oh-my-biche-rennes', 'auth0|63e218f517cae1bd6ff4d1bb', 'Oh My Biche', 'Adresse fictive omb', 'Lannion', '22300', '21.23124', '32.34223', true, '13:00 - 00:00', 'Très bon et très original !', 7, 5);
 
-INSERT INTO "note" ("id", "user_id", "place_id", "name", "price", "favorite", "comment") VALUES
+INSERT INTO "note" ("id", "place_id", "name", "price", "favorite", "comment") VALUES
 (1, 'auth0|63e218f517cae1bd6ff4d1bb', 1, '280', '6,50€', true, 'ultra light'),
 (2, 'auth0|63e218f517cae1bd6ff4d1bb', 1, 'McWrap', '5,50€', true, 'trop bon'),
 (3, 'auth0|63e218f517cae1bd6ff4d1bb', 3, 'BoxMaster', '3,50€', true, 'ultra light'),
