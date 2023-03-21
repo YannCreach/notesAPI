@@ -4,18 +4,30 @@ const sequelize = require('../database');
 class Place extends Model {}
 
 Place.init({
+  id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
     type: DataTypes.STRING(255)
   },
-  adress: {
+  address: {
     type: DataTypes.STRING(255)
   },
-  city: {
-    type: DataTypes.STRING(50)
-  },
-  zip: {
-    type: DataTypes.INTEGER
-  },                   
+  // street_number: {
+  //   type: DataTypes.STRING(10)
+  // },
+  // route: {
+  //   type: DataTypes.STRING(255)
+  // },
+  // city: {
+  //   type: DataTypes.STRING(50)
+  // },
+  // zip: {
+  //   type: DataTypes.INTEGER
+  // },
   latitude: {
     type: DataTypes.DOUBLE
   },
@@ -28,16 +40,12 @@ Place.init({
   favorite: {
     type: DataTypes.BOOLEAN
   },
-  opening: {
-    type: DataTypes.STRING(255)
-  },
   comment: {
     type: DataTypes.TEXT
   },
   category_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: '0',
   },
   user_id: {
     type: DataTypes.STRING(255),
@@ -46,9 +54,14 @@ Place.init({
   rating: {
     type: DataTypes.INTEGER,
   },
+  slug: {
+    type: DataTypes.STRING(255),
+  },
+  googleid: {
+    type: DataTypes.STRING(50),
+  },
   yelpid: {
     type: DataTypes.STRING(50),
-    unique: true,
   },
 }, {
   sequelize,

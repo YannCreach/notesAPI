@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const noteController = require('./controllers/noteController')
+const noteController = require('./controllers/noteController');
 const userController = require('./controllers/userController');
 const placeController = require('./controllers/placeController');
 // const uploadController = require('./controllers/uploadController');
@@ -14,18 +14,28 @@ router.patch('/user', userController.updateColorscheme);
 // router.patch('/user', userController.updateUser);
 // router.delete('/user', userController.deleteUser);
 
+router.get('/location', placeController.getLocationAutoComplete);
+router.get('/locationgoogle', placeController.getLocationAutoComplete);
+router.get('/locationexisting', placeController.getLocationExisting);
+router.get('/getplacedetails', placeController.getPlaceDetails);
 // Places
 router.get('/places', placeController.getAllPlaces);
 router.get('/place', placeController.getPlaceById);
-router.get('/latestplaces', placeController.getLatestPlaces);
-router.get('/category', placeController.getPlacesByCategory);
 
-// router.post('/place', placeController.createPlace);
+router.get('/searchcoords', placeController.placeFromApiByCoords);
+router.get('/latestplaces', placeController.getLatestPlaces);
+router.get('/category', placeController.getOneCategory);
+router.get('/placesbycategory', placeController.getPlacesByCategory);
+
+router.post('/place', placeController.createPlace);
 router.patch('/place', placeController.updatePlace);
 // router.delete('/place', placeController.deletePlace);
 
 // Categories
 router.get('/categories', placeController.getAllCategories);
+
+// Tags
+router.get('/tags', placeController.getAllTags);
 
 // Notes
 router.get('/notes', noteController.getAllNotes);
@@ -35,8 +45,8 @@ router.patch('/note', noteController.updateNote);
 // router.delete('/note', noteController.deleteNote);
 
 router.get('/', (req, res) => {
-	let filePath = path.join(__dirname, '../index.html');
-	res.sendFile(filePath);
+  let filePath = path.join(__dirname, '../index.html');
+  res.sendFile(filePath);
 });
 
 // Upload
