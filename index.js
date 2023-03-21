@@ -15,13 +15,13 @@ const jwtCheck = auth({
   tokenSigningAlg: 'RS256'
 });
 
-app.use(cors({ origin: "*" }));
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 app.use(jwtCheck);
 
 app.get('/authorized', function (req, res) {
-    res.send('Secured Resource');
+  res.send('Secured Resource');
 });
 
 app.use(router);

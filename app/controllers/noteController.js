@@ -1,6 +1,4 @@
 const { Note } = require('../models');
-const assert = require('assert');
-
 
 class noteController {
 
@@ -17,7 +15,7 @@ class noteController {
       res.status(500).json({ message: error.message });
     }
   }
-  
+
   static async getNoteById(req, res) {
     // assert.ok('id' in req.body, 'A user ID is required');
     try {
@@ -49,11 +47,11 @@ class noteController {
     try {
       // console.log(req.headers);
       const { noteid, favorite } = req.headers;
-      const updated = await Note.update({ favorite }, { where: { 
+      const updated = await Note.update({ favorite }, { where: {
         id: noteid,
         user_id: req.auth.payload.sub,
       }, });
-      
+
       if (updated) {
         const updatedNote = await Note.findByPk(noteid);
         res.status(200).json({ note: updatedNote });

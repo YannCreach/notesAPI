@@ -5,6 +5,12 @@ const Place = require('./place');
 class Note extends Model {}
 
 Note.init({
+  id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
     type: DataTypes.STRING(255)
   },
@@ -14,8 +20,11 @@ Note.init({
   },
   price: {
     type: DataTypes.STRING(50)
-  },                          
+  },
   cover: {
+    type: DataTypes.STRING(255)
+  },
+  option: {
     type: DataTypes.STRING(255)
   },
   favorite: {

@@ -16,11 +16,11 @@ const Tag = require('./tag');
 Place.hasMany(Note, { // a place has Many notes
   foreignKey: 'place_id',
   as: 'place_note'
-}); 
+});
 Note.belongsTo(Place, { // a note has One place
   foreignKey: 'place_id',
   as: 'note_place'
-}); 
+});
 
 
 Place.belongsToMany(Tag, { // a place has Many tags
@@ -42,11 +42,11 @@ Tag.belongsToMany(Place, { // a tag has many places
 Place.belongsTo(Category, { // a place has One category
   foreignKey: 'category_id',
   as: 'place_category'
-}); 
+});
 Category.hasMany(Place, { // a category has many place
   foreignKey: 'category_id',
   as: 'category_place'
-}); 
+});
 
 
 Note.belongsToMany(Tag, { // a note has Many tags

@@ -1,4 +1,4 @@
-var axios = require("axios").default;
+var axios = require('axios').default;
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -11,7 +11,7 @@ const m2mClientSecret = process.env.M2M_CLIENT_SECRET;
 class userController {
 
   static async updateColorscheme(req, res){
- 
+
     var optionsToken = {
       method: 'POST',
       url: `https://${domain}/oauth/token`,
@@ -23,9 +23,9 @@ class userController {
         audience: audience_management
       })
     };
-    
+
     axios.request(optionsToken).then(function (responseToken) {
-      
+
       var optionsPatch = {
         method: 'PATCH',
         url: `${audience_management}users/${req.auth.payload.sub}`,
@@ -42,7 +42,7 @@ class userController {
       });
 
     }).catch(function (errorToken) {
-      console.log(`TOKEN NOK: ${errorPatch}`);
+      console.log(`TOKEN NOK: ${errorToken}`);
       res.status(500);
     });
 
