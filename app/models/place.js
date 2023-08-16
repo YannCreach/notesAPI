@@ -53,6 +53,7 @@ Place.init({
   },
   rating: {
     type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   slug: {
     type: DataTypes.STRING(255),

@@ -18,18 +18,21 @@ router.get('/location', placeController.getLocationAutoComplete);
 router.get('/locationgoogle', placeController.getLocationAutoComplete);
 router.get('/locationexisting', placeController.getLocationExisting);
 router.get('/getplacedetails', placeController.getPlaceDetails);
+
+
 // Places
 router.get('/places', placeController.getAllPlaces);
 router.get('/place', placeController.getPlaceById);
+router.get('/placefromapi', placeController.placeFromApiById);
 
 router.get('/searchcoords', placeController.placeFromApiByCoords);
 router.get('/latestplaces', placeController.getLatestPlaces);
+router.get('/latestplacesbycategory', placeController.getLatestPlacesByCategory);
 router.get('/category', placeController.getOneCategory);
 router.get('/placesbycategory', placeController.getPlacesByCategory);
-
 router.post('/place', placeController.createPlace);
 router.patch('/place', placeController.updatePlace);
-// router.delete('/place', placeController.deletePlace);
+router.delete('/place', placeController.deletePlace);
 
 // Categories
 router.get('/categories', placeController.getAllCategories);

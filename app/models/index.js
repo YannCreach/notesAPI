@@ -23,21 +23,22 @@ Note.belongsTo(Place, { // a note has One place
 });
 
 
-Place.belongsToMany(Tag, { // a place has Many tags
-  as: 'place_tag',
-  through: 'place_has_tag',
-  foreignKey: 'place_id',
-  otherKey: 'tag_id',
-  timestamps: false
-});
-Tag.belongsToMany(Place, { // a tag has many places
-  as: 'tag_place',
-  through: 'place_has_tag',
-  otherKey: 'tag_id',
-  foreignKey: 'place_id',
-  timestamps: false
-});
-
+// Place.belongsToMany(Tag, { // a place has Many tags
+//   as: 'place_tag',
+//   through: 'place_has_tag',
+//   foreignKey: 'place_id',
+//   otherKey: 'tag_id',
+//   timestamps: false
+// });
+// Tag.belongsToMany(Place, { // a tag has many places
+//   as: 'tag_place',
+//   through: 'place_has_tag',
+//   otherKey: 'tag_id',
+//   foreignKey: 'place_id',
+//   timestamps: false
+// });
+Place.belongsToMany(Tag, { through: 'place_has_tag' });
+Tag.belongsToMany(Place, { through: 'place_has_tag' });
 
 Place.belongsTo(Category, { // a place has One category
   foreignKey: 'category_id',
@@ -49,19 +50,22 @@ Category.hasMany(Place, { // a category has many place
 });
 
 
-Note.belongsToMany(Tag, { // a note has Many tags
-  as: 'note_tag',
-  through: 'note_has_tag',
-  foreignKey: 'note_id',
-  otherKey: 'tag_id',
-  timestamps: false
-});
-Tag.belongsToMany(Note, { // a tag has many note
-  as: 'tag_note',
-  through: 'note_has_tag',
-  otherKey: 'tag_id',
-  foreignKey: 'note_id',
-  timestamps: false
-});
+// Note.belongsToMany(Tag, { // a note has Many tags
+//   as: 'note_tag',
+//   through: 'note_has_tag',
+//   foreignKey: 'note_id',
+//   otherKey: 'tag_id',
+//   timestamps: false
+// });
+// Tag.belongsToMany(Note, { // a tag has many note
+//   as: 'tag_note',
+//   through: 'note_has_tag',
+//   otherKey: 'tag_id',
+//   foreignKey: 'note_id',
+//   timestamps: false
+// });
+
+Note.belongsToMany(Tag, { through: 'note_has_tag' });
+Tag.belongsToMany(Note, { through: 'note_has_tag' });
 
 module.exports = { Place, Note, Category, Tag };
