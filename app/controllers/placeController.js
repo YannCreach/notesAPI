@@ -610,6 +610,15 @@ class placeController {
       const googleData = await axios.get(url, { params });
       console.log(googleData.data.result);
       // placeData = { ...placeData, google:{...googleData.data.result} };
+      
+      const categoryName = googleData.data.result.types[0];
+      const formattedCategoryName = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+      const categoryInstance = await Category.findOne({
+        where: {
+          label: formattedCategoryName
+        }
+      });
+
       const formattedData = {
         name: googleData.data.result.name,
         current_opening_hours: googleData.data.result.opening_hours,
@@ -620,10 +629,12 @@ class placeController {
         price_level: googleData.data.result.price_level,
         rating: googleData.data.result.rating,
         types: googleData.data.result.types,
+        category_id: categoryInstance.id,
         user_ratings_total: googleData.data.result.user_ratings_total,
         website: googleData.data.result.website,
         google_cover: googleData.data.result.google_cover,
       };
+      
       res.status(200).json(formattedData);
     } catch (err) {
       console.log(`Google data not found: ${err}`);
@@ -842,7 +853,7 @@ class placeController {
           address,
           comment,
           cover,
-          category_id,
+          categoryid,
           latitude,
           longitude,
           rating,
@@ -874,6 +885,45 @@ class placeController {
     } catch (error) {
       console.trace(error);
       res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async createPlace2(req, res) {
+
+    const allowed = [
+      'name',
+      'slug',
+      'location',
+      'address',
+      'latitude',
+      'longitude',
+      'googleid',
+      'yelpid',
+      'rating',
+      'cover',
+      'favorite',
+      'comment',
+      'category_id',
+      'tags',
+    ];
+    let params = [];
+    let setStr = '';
+
+    for (var key in req.body) {
+      if (allowed.some((allowedKey) => allowedKey === key)) {
+        setStr += `${key} = '${req.body[key]}',`;
+        params.push[key];
+      }
+    }
+
+    try {
+      const result = await client.query(query, values);
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        message: err.message
+      });
     }
   }
 
