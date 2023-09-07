@@ -687,6 +687,7 @@ class placeController {
     const params = {
       input: location,
       types: types,
+      fields: ["structured_formatting", "place_id"],
       language: "fr",
       location: `${lat},${lng}`,
       radius: 5000,
@@ -748,11 +749,11 @@ class placeController {
           const { main_text, secondary_text, main_text_matched_substrings } =
             prediction.structured_formatting;
           return {
-            description: prediction.description,
+            // description: prediction.description,
             main_text,
             secondary_text,
             place_id: prediction.place_id,
-            types: prediction.types,
+            // types: prediction.types,
             main_text_matched_substrings,
           };
         }
@@ -765,6 +766,105 @@ class placeController {
         .json({ error: "An error occurred while fetching data from Google" });
     }
   }
+
+  // static async getLocationAutoComplete(req, res) {
+  //   const {
+  //     location,
+  //     lat,
+  //     lng,
+  //     types
+  //   } = req.headers;
+  //   const url = "https://api.yelp.com/v3/businesses/search";
+  //   const params = {
+  //     text: location,
+  //     locale: "fr_FR",
+  //     // types: types,
+  //     latitude: lat,
+  //     longitude: lng,
+  //     radius: 5000,
+  //     Authorization: `Bearer ${yelpApiKey}`,
+  //   };
+
+  //   try {
+  //     const response = await axios.get(url, {
+  //       params
+  //     });
+
+  //     //console.log(response.data.predictions[0])
+  //     // {
+  //     //   "description": "Ozgûr Kebab, Avenue Ernest Renan, Lannion, France",
+  //     //   "matched_substrings": [
+  //     //     {
+  //     //       "length": 5,
+  //     //       "offset": 6
+  //     //     }
+  //     //   ],
+  //     //   "place_id": "ChIJlyEiq-4rEkgRMBq8tjcMrYo",
+  //     //   "reference": "ChIJlyEiq-4rEkgRMBq8tjcMrYo",
+  //     //   "structured_formatting": {
+  //     //     "main_text": "Ozgûr Kebab",
+  //     //     "main_text_matched_substrings": [
+  //     //       {
+  //     //         "length": 5,
+  //     //         "offset": 6
+  //     //       }
+  //     //     ],
+  //     //     "secondary_text": "Avenue Ernest Renan, Lannion, France"
+  //     //   },
+  //     //   "terms": [
+  //     //     {
+  //     //       "offset": 0,
+  //     //       "value": "Ozgûr Kebab"
+  //     //     },
+  //     //     {
+  //     //       "offset": 13,
+  //     //       "value": "Avenue Ernest Renan"
+  //     //     },
+  //     //     {
+  //     //       "offset": 34,
+  //     //       "value": "Lannion"
+  //     //     },
+  //     //     {
+  //     //       "offset": 43,
+  //     //       "value": "France"
+  //     //     }
+  //     //   ],
+  //     //   "types": [
+  //     //     "restaurant",
+  //     //     "food",
+  //     //     "point_of_interest",
+  //     //     "establishment"
+  //     //   ]
+  //     // }
+
+  //     const formattedPredictions = response.data.predictions.map(
+  //       (prediction) => {
+  //         const {
+  //           main_text,
+  //           secondary_text,
+  //           main_text_matched_substrings
+  //         } =
+  //         prediction.structured_formatting;
+  //         return {
+  //           description: prediction.description,
+  //           main_text,
+  //           secondary_text,
+  //           place_id: prediction.place_id,
+  //           types: prediction.types,
+  //           main_text_matched_substrings,
+  //         };
+  //       }
+  //     );
+  //     res.status(200).json(formattedPredictions);
+  //   } catch (error) {
+  //     console.error(`Error fetching Google data: ${error.message}`);
+  //     res
+  //       .status(500)
+  //       .json({
+  //         error: "An error occurred while fetching data from Google"
+  //       });
+  //   }
+  // }
 
   static async getLocationExisting(req, res) {
     const { location } = req.headers;

@@ -14,8 +14,9 @@ router.patch("/user", userController.updateColorscheme);
 // router.patch('/user', userController.updateUser);
 // router.delete('/user', userController.deleteUser);
 
-router.get("/location", placeController.getLocationAutoComplete);
+// router.get("/location", placeController.getLocationAutoComplete);
 router.get("/googleautocomplete", placeController.getLocationAutoComplete);
+router.get("/yelpautocomplete", placeController.getLocationAutoComplete);
 router.get("/existingautocomplete", placeController.getLocationExisting);
 router.get("/getplacedetails", placeController.getPlaceDetails);
 
