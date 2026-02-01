@@ -18,38 +18,38 @@ CREATE POLICY allow_all_select_tag ON "tag" FOR SELECT USING (true);
 -- Place: owner-based policies 100% basées sur Supabase Auth (auth.uid())
 DROP POLICY IF EXISTS place_owner_select ON "place";
 CREATE POLICY place_owner_select ON "place"
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT USING (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS place_owner_insert ON "place";
 CREATE POLICY place_owner_insert ON "place"
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+  FOR INSERT WITH CHECK (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS place_owner_update ON "place";
 CREATE POLICY place_owner_update ON "place"
-  FOR UPDATE USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  FOR UPDATE USING (user_id = auth.uid()::text)
+  WITH CHECK (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS place_owner_delete ON "place";
 CREATE POLICY place_owner_delete ON "place"
-  FOR DELETE USING (user_id = auth.uid());
+  FOR DELETE USING (user_id = auth.uid()::text);
 
 -- Note: owner-based policies 100% auth.uid()
 DROP POLICY IF EXISTS note_owner_select ON "note";
 CREATE POLICY note_owner_select ON "note"
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT USING (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS note_owner_insert ON "note";
 CREATE POLICY note_owner_insert ON "note"
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+  FOR INSERT WITH CHECK (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS note_owner_update ON "note";
 CREATE POLICY note_owner_update ON "note"
-  FOR UPDATE USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  FOR UPDATE USING (user_id = auth.uid()::text)
+  WITH CHECK (user_id = auth.uid()::text);
 
 DROP POLICY IF EXISTS note_owner_delete ON "note";
 CREATE POLICY note_owner_delete ON "note"
-  FOR DELETE USING (user_id = auth.uid());
+  FOR DELETE USING (user_id = auth.uid()::text);
 
 -- place_has_tag: lecture libre, écritures réservées au propriétaire via sous-requêtes
 DROP POLICY IF EXISTS place_tag_select_all ON "place_has_tag";
@@ -61,7 +61,7 @@ CREATE POLICY place_tag_insert_owner ON "place_has_tag"
     EXISTS (
       SELECT 1 FROM "place" p
       WHERE p.id = place_id
-        AND p.user_id = auth.uid()
+        AND p.user_id = auth.uid()::text
     )
   );
 
@@ -71,7 +71,7 @@ CREATE POLICY place_tag_delete_owner ON "place_has_tag"
     EXISTS (
       SELECT 1 FROM "place" p
       WHERE p.id = place_id
-        AND p.user_id = auth.uid()
+        AND p.user_id = auth.uid()::text
     )
   );
 
@@ -81,14 +81,14 @@ CREATE POLICY place_tag_update_owner ON "place_has_tag"
     EXISTS (
       SELECT 1 FROM "place" p
       WHERE p.id = place_id
-        AND p.user_id = auth.uid()
+        AND p.user_id = auth.uid()::text
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM "place" p
       WHERE p.id = place_id
-        AND p.user_id = auth.uid()
+        AND p.user_id = auth.uid()::text
     )
   );
 
@@ -102,7 +102,7 @@ CREATE POLICY note_tag_insert_owner ON "note_has_tag"
     EXISTS (
       SELECT 1 FROM "note" n
       WHERE n.id = note_id
-        AND n.user_id = auth.uid()
+        AND n.user_id = auth.uid()::text
     )
   );
 
@@ -112,7 +112,7 @@ CREATE POLICY note_tag_delete_owner ON "note_has_tag"
     EXISTS (
       SELECT 1 FROM "note" n
       WHERE n.id = note_id
-        AND n.user_id = auth.uid()
+        AND n.user_id = auth.uid()::text
     )
   );
 
@@ -122,14 +122,14 @@ CREATE POLICY note_tag_update_owner ON "note_has_tag"
     EXISTS (
       SELECT 1 FROM "note" n
       WHERE n.id = note_id
-        AND n.user_id = auth.uid()
+        AND n.user_id = auth.uid()::text
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM "note" n
       WHERE n.id = note_id
-        AND n.user_id = auth.uid()
+        AND n.user_id = auth.uid()::text
     )
   );
 

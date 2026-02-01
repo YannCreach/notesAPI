@@ -218,3 +218,142 @@ Vous pouvez exécuter vos policies via Studio ou des scripts SQL dédiés.
     - `supabaseAdmin`: client admin (service role) — fallback sur `supabase` si la clé n’est pas fournie.
   - Les modèles emploient `supabase` pour les lectures et `supabaseAdmin` pour les écritures.
 - Côté client (front): utilisez la clé publishable et laissez les policies RLS protéger les accès. Les opérations nécessitant des privilèges doivent passer par le backend.
+
+---
+
+## Contrat API (Front)
+
+Ce chapitre formalise les conventions nécessaires pour refactorer le front en cohérence avec l’API.
+
+### Base URL, Auth et CORS
+
+- Base URL: `http://localhost:<SERVER_PORT>` (défini par `SERVER_PORT` dans `.env`).
+- Auth: `Authorization: Bearer <JWT>` (JWT Auth0 requis pour toutes les routes).
+- Audience/Issuer: voir `AUTH_AUDIENCE` et `AUTH_ISSUER_BASE_URL` dans `.env`.
+- CORS: restreignez en prod via `ALLOWED_ORIGINS="https://app.example.com,https://studio.supabase.co"`.
+
+### Conventions de requêtes
+
+- Identifiants fonctionnels passent par route params et/ou query (cf. routes ci-dessus). Les headers ne doivent plus être utilisés à cet effet.
+- Pagination commune: `page`, `limit`, `sort` (par défaut `created_at`), `order` (`asc`|`desc`).
+
+### Conventions de réponses
+
+- Pagination:
+  - Format: `{ items|places|notes: [...], meta: { page, limit, total, totalPages } }`.
+- Ressources usuelles:
+  - `GET /places`: `{ places: Array<PlaceWithCount>, meta }`.
+  - `GET /categories/:label/places`: `{ places: Array<PlaceWithCount>, meta }`.
+  - `GET /latestplaces`: `{ places: Array<Place> }`.
+  - `GET /place/:id`: `Place` enrichi potentiellement avec `{ google, yelp, google_cover }`.
+  - `GET /places/:id/notes`: `{ notes: Array<Note>, meta }`.
+  - `GET /notes/:id`: `{ note: Note }`.
+  - `PATCH /notes/:id`: `{ note: Note }` (favori mis à jour).
+  - `POST /notes/:id/tags`: `{ tags: Array<Tag> }`.
+  - `GET /notes/:id/tags`: `{ tags: Array<Tag> }`.
+  - `DELETE /notes/:id/tags`: `{ removed: number }`.
+  - `POST /place`: `{ place: Place, tags?: Array<Tag> }` (201 créé).
+  - `PATCH /place/:id`: `{ place: Place }` (favori mis à jour).
+  - `DELETE /place/:id`: `{ message: "Place deleted" }` (200), ou 404 si introuvable.
+
+### Modèles (types indicatifs)
+
+Ces structures reflètent les champs manipulés par les contrôleurs/services. Les types peuvent être affinés selon la base.
+
+```ts
+type UUIDString = string; // Auth0 sub (string), ou UUID via Supabase Auth
+
+type Category = {
+  id: number;
+  label: string;
+  label_en?: string;
+  label_fr?: string;
+};
+
+type Tag = {
+  id: number;
+  label: string;
+  category_id?: number;
+};
+
+type Place = {
+  id: number;
+  name: string;
+  slug?: string;
+  category_id: number;
+  latitude: number;
+  longitude: number;
+  rating?: number; // peut être 0
+  address?: string;
+  cover?: string;
+  comment?: string;
+  favorite?: boolean;
+  googleid?: string | null;
+  yelpid?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+type PlaceWithCount = Place & { notes_count: number };
+
+type Note = {
+  id: number;
+  place_id: number;
+  content?: string;
+  favorite?: boolean;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+type PlaceDetailsGoogle = {
+  // Sous-ensemble des champs Google Place Details (voir contrôleur)
+  name: string;
+  formatted_address?: string;
+  formatted_phone_number?: string;
+  geometry?: unknown;
+  place_id: string;
+  price_level?: number;
+  rating?: number;
+  types?: string[];
+  user_ratings_total?: number;
+  website?: string;
+};
+```
+
+### Schémas des corps de requête (extraits)
+
+- `POST /place`:
+  - `{ name, slug, category_id, latitude, longitude, rating?, address?, cover?, comment?, favorite?, googleid?, yelpid?, tags?: [{ label }] }`
+- `PATCH /place/:id`:
+  - `{ favorite: boolean }`
+- `PATCH /notes/:id`:
+  - `{ favorite: boolean }`
+- `POST /notes/:id/tags` | `DELETE /notes/:id/tags`:
+  - `{ tags: [{ label }] }`
+
+### Erreurs
+
+- Format standard (middleware `errorHandler`):
+  - `{ error: { code: string, message: string, details?: any, stack?: string } }`
+  - Codes typiques: `validation_error` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `internal_error` (500).
+- 404 route inconnue: `{ error: { code: "not_found", message: "Route not found" } }`.
+- Remarque: certains contrôleurs héritent encore de réponses `{ message: "..." }` pour 404. Le front peut gérer les deux formes le temps d’une harmonisation.
+
+### Bonnes pratiques front
+
+- Centralisez `Authorization` et la gestion des erreurs (standardisez l’affichage à partir de `{ error }`).
+- Utilisez systématiquement les params/query (pas de headers pour les identifiants fonctionnels).
+- Anticipez l’enrichissement optionnel de `GET /place/:id` avec `google`, `yelp`, et `google_cover`.
+- Respectez la pagination et consommez `meta.totalPages` pour la navigation.
+- Affichez `notes_count` dans les listes de lieux quand disponible.
+
+### Checklist de refactor front (Copilot)
+
+- Configurer la base URL à partir de l’environnement (`SERVER_PORT` côté API; variable front `VITE_API_URL`/`NEXT_PUBLIC_API_URL`).
+- Créer un client HTTP typé (fetch/axios) avec intercepteur `Authorization` et parsing des erreurs `{ error }`.
+- Implémenter les pages/lists en consommant `places`/`notes` + `meta`.
+- Mettre à jour les formulaires selon les schémas de corps (création lieu, tags, favoris).
+- Gérer l’affichage conditionnel des détails Google/Yelp et `google_cover`.
+- Vérifier CORS via `ALLOWED_ORIGINS` (adapter l’origine du front).
+
+Si nécessaire, on peut ajouter un fichier OpenAPI minimal (YAML/JSON) pour guider davantage les outils d’IA.

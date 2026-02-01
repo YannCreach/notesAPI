@@ -21,6 +21,22 @@ DROP TABLE IF EXISTS
 --     "updated_at" TIMESTAMP with time zone
 --   );
  
+CREATE TABLE IF NOT EXISTS "category" (
+    "id" SERIAL PRIMARY KEY,
+    "label" VARCHAR(255) UNIQUE,
+    "label_fr" VARCHAR(255) UNIQUE,
+    "label_en" VARCHAR(255) UNIQUE,
+    "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMP with time zone
+  );
+
+CREATE TABLE IF NOT EXISTS "tag" (
+    "id" SERIAL PRIMARY KEY,
+    "label" VARCHAR(255) UNIQUE,
+    "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMP with time zone
+  );
+
 CREATE TABLE IF NOT EXISTS "place" (
     "id" SERIAL PRIMARY KEY,
     "user_id" VARCHAR(255) NOT NULL,
@@ -50,22 +66,6 @@ CREATE TABLE IF NOT EXISTS "note" (
     "cover" VARCHAR(255),
     "favorite" BOOLEAN NOT NULL DEFAULT FALSE,
     "comment" TEXT,
-    "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
-    "updated_at" TIMESTAMP with time zone
-  );
-
-CREATE TABLE IF NOT EXISTS "category" (
-    "id" SERIAL PRIMARY KEY,
-    "label" VARCHAR(255) UNIQUE,
-    "label_fr" VARCHAR(255) UNIQUE,
-    "label_en" VARCHAR(255) UNIQUE,
-    "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
-    "updated_at" TIMESTAMP with time zone
-  );
-
-CREATE TABLE IF NOT EXISTS "tag" (
-    "id" SERIAL PRIMARY KEY,
-    "label" VARCHAR(255) UNIQUE,
     "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMP with time zone
   );
