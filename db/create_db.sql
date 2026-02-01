@@ -32,10 +32,10 @@ CREATE TABLE IF NOT EXISTS "place" (
     "rating" INTEGER,
     "favorite" BOOLEAN NOT NULL DEFAULT FALSE,
     "comment" TEXT,
-    "slug" VARCHAR(255) UNIQUE,
-    "googleid" VARCHAR(50) UNIQUE,
-    "yelpid" VARCHAR(50) UNIQUE,
-    "category_id" INTEGER NOT NULL,
+    "slug" VARCHAR(255),
+    "googleid" VARCHAR(50),
+    "yelpid" VARCHAR(50),
+  "category_id" INTEGER NOT NULL REFERENCES "category"("id") ON DELETE RESTRICT,
     "created_at" TIMESTAMP with time zone NOT NULL DEFAULT now(),
     "updated_at" TIMESTAMP with time zone
   );
@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS "place_has_tag" (
     "place_id" INTEGER NOT NULL REFERENCES "place"("id") ON DELETE CASCADE,
     "tag_id" INTEGER NOT NULL REFERENCES "tag"("id") ON DELETE CASCADE,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "updated_at" TIMESTAMPTZ
+    "updated_at" TIMESTAMPTZ,
+    CONSTRAINT place_has_tag_place_id_tag_id_key UNIQUE ("place_id", "tag_id")
   );
 
 CREATE TABLE IF NOT EXISTS "note_has_tag" (
@@ -83,7 +84,114 @@ CREATE TABLE IF NOT EXISTS "note_has_tag" (
   "note_id" INTEGER NOT NULL REFERENCES "note"("id") ON DELETE CASCADE,
   "tag_id" INTEGER NOT NULL REFERENCES "tag"("id") ON DELETE CASCADE,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updated_at" TIMESTAMPTZ
+  "updated_at" TIMESTAMPTZ,
+  CONSTRAINT note_has_tag_note_id_tag_id_key UNIQUE ("note_id", "tag_id")
 );
 
 COMMIT;
+
+-- Supabase: activer RLS et créer des policies (optionnel)
+-- Recommandé: utiliser la SERVICE ROLE KEY côté serveur (RLS bypass)
+-- Si vous souhaitez utiliser la publishable (anon) key avec RLS, il faut que les utilisateurs s’authentifient via Supabase (auth.uid()).
+
+-- Activer RLS
+ALTER TABLE "place" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "note" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "place_has_tag" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "note_has_tag" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "tag" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "category" ENABLE ROW LEVEL SECURITY;
+
+-- Policies d’accès lecture pour tout le monde (facultatif)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'allow_all_select_category') THEN
+    CREATE POLICY allow_all_select_category ON "category" FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'allow_all_select_tag') THEN
+    CREATE POLICY allow_all_select_tag ON "tag" FOR SELECT USING (true);
+  END IF;
+END $$;
+
+-- Policies basées sur le propriétaire (utilisateur Supabase)
+-- Nécessite que les requêtes portent un JWT Supabase (auth.uid())
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_owner_select') THEN
+    CREATE POLICY place_owner_select ON "place" FOR SELECT USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_owner_insert') THEN
+    CREATE POLICY place_owner_insert ON "place" FOR INSERT WITH CHECK (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_owner_update') THEN
+    CREATE POLICY place_owner_update ON "place" FOR UPDATE USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)) WITH CHECK (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_owner_delete') THEN
+    CREATE POLICY place_owner_delete ON "place" FOR DELETE USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_owner_select') THEN
+    CREATE POLICY note_owner_select ON "note" FOR SELECT USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_owner_insert') THEN
+    CREATE POLICY note_owner_insert ON "note" FOR INSERT WITH CHECK (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_owner_update') THEN
+    CREATE POLICY note_owner_update ON "note" FOR UPDATE USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)) WITH CHECK (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_owner_delete') THEN
+    CREATE POLICY note_owner_delete ON "note" FOR DELETE USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text));
+  END IF;
+END $$;
+
+-- Pour les tables N:N, la lecture est libre mais l’écriture est réservée au propriétaire via sous-requêtes
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_tag_select_all') THEN
+    CREATE POLICY place_tag_select_all ON "place_has_tag" FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_tag_insert_owner') THEN
+    CREATE POLICY place_tag_insert_owner ON "place_has_tag" FOR INSERT
+      WITH CHECK (EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_tag_delete_owner') THEN
+    CREATE POLICY place_tag_delete_owner ON "place_has_tag" FOR DELETE
+      USING (EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'place_tag_update_owner') THEN
+    CREATE POLICY place_tag_update_owner ON "place_has_tag" FOR UPDATE
+      USING (EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)))
+      WITH CHECK (EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_tag_select_all') THEN
+    CREATE POLICY note_tag_select_all ON "note_has_tag" FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_tag_insert_owner') THEN
+    CREATE POLICY note_tag_insert_owner ON "note_has_tag" FOR INSERT
+      WITH CHECK (EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_tag_delete_owner') THEN
+    CREATE POLICY note_tag_delete_owner ON "note_has_tag" FOR DELETE
+      USING (EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'note_tag_update_owner') THEN
+    CREATE POLICY note_tag_update_owner ON "note_has_tag" FOR UPDATE
+      USING (EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)))
+      WITH CHECK (EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text)));
+  END IF;
+END $$;
+
+-- Contraintes d'unicité par utilisateur (empêche collision cross-user)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'place_user_slug_key') THEN
+    ALTER TABLE "place" ADD CONSTRAINT place_user_slug_key UNIQUE ("user_id", "slug");
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'place_user_googleid_key') THEN
+    ALTER TABLE "place" ADD CONSTRAINT place_user_googleid_key UNIQUE ("user_id", "googleid");
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'place_user_yelpid_key') THEN
+    ALTER TABLE "place" ADD CONSTRAINT place_user_yelpid_key UNIQUE ("user_id", "yelpid");
+  END IF;
+END $$;

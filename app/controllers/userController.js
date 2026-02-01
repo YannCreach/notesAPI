@@ -1,5 +1,5 @@
-var axios = require('axios').default;
-const dotenv = require('dotenv');
+import axios from "axios";
+import dotenv from "dotenv";
 dotenv.config();
 
 const audience_management = process.env.AUTH0_AUDIENCE_MANAGEMENT;
@@ -7,49 +7,68 @@ const domain = process.env.AUTH0_DOMAIN;
 const m2mclientId = process.env.AUTH0_M2M_CLIENT_ID;
 const m2mClientSecret = process.env.M2M_CLIENT_SECRET;
 
-
 class userController {
-
-  static async updateColorscheme(req, res){
-
+  static async updateColorscheme(req, res) {
+    const body = req.validated || req.body || {};
     var optionsToken = {
-      method: 'POST',
+      method: "POST",
       url: `https://${domain}/oauth/token`,
-      headers: {'content-type': 'application/x-www-form-urlencoded'},
+      headers: { "content-type": "application/x-www-form-urlencoded" },
       data: new URLSearchParams({
-        grant_type: 'client_credentials',
+        grant_type: "client_credentials",
         client_id: m2mclientId,
         client_secret: m2mClientSecret,
-        audience: audience_management
-      })
+        audience: audience_management,
+      }),
     };
 
-    axios.request(optionsToken).then(function (responseToken) {
-
-      var optionsPatch = {
-        method: 'PATCH',
-        url: `${audience_management}users/${req.auth.payload.sub}`,
-        headers: {Authorization: `Bearer ${responseToken.data.access_token}`, 'content-type': 'application/json'},
-        data: {
-          user_metadata: {colorscheme: req.body.colorscheme},
-        }
-      };
-      axios.request(optionsPatch).then(function (responsePatch) {
-        console.log(responsePatch.data.user_metadata);
-      }).catch(function (errorPatch) {
-        console.log(`PATCH NOK: ${errorPatch}`);
-        res.status(500);
+    axios
+      .request(optionsToken)
+      .then(function (responseToken) {
+        var optionsPatch = {
+          method: "PATCH",
+          url: `${audience_management}users/${req.auth.payload.sub}`,
+          headers: {
+            Authorization: `Bearer ${responseToken.data.access_token}`,
+            "content-type": "application/json",
+          },
+          data: {
+            user_metadata: { colorscheme: body.colorscheme },
+          },
+        };
+        axios
+          .request(optionsPatch)
+          .then(function (responsePatch) {
+            console.log(responsePatch.data.user_metadata);
+          })
+          .catch(function (errorPatch) {
+            if (process.env.NODE_ENV !== "production")
+              console.error(`PATCH NOK: ${errorPatch}`);
+            res
+              .status(500)
+              .json({
+                error: {
+                  code: "auth0_patch_failed",
+                  message: "Failed to update user metadata",
+                },
+              });
+          });
+      })
+      .catch(function (errorToken) {
+        if (process.env.NODE_ENV !== "production")
+          console.error(`TOKEN NOK: ${errorToken}`);
+        res
+          .status(500)
+          .json({
+            error: {
+              code: "auth0_token_failed",
+              message: "Failed to retrieve management token",
+            },
+          });
       });
 
-    }).catch(function (errorToken) {
-      console.log(`TOKEN NOK: ${errorToken}`);
-      res.status(500);
-    });
-
-    res.status(200).json({ colorscheme: req.body.colorscheme });
-
+    res.status(200).json({ colorscheme: body.colorscheme });
   }
-
 
   // static async loginUser(req, res) {
   //   assert.ok('id' in req.body, 'A user ID is required');
@@ -111,4 +130,4 @@ class userController {
   // }
 }
 
-module.exports = userController;
+export default userController;

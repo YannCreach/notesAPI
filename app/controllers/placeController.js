@@ -1,38 +1,47 @@
-const { Place, Category, Tag } = require("../models");
-// const assert = require('assert');
-const axios = require("axios");
-const { Op } = require("sequelize");
+import { Place, Category, Tag } from "../models/index.js";
+import PlacesService from "../services/places.service.js";
+import NotesService from "../services/notes.service.js";
+import CategoryService from "../services/category.service.js";
+import TagService from "../services/tag.service.js";
+import axios from "axios";
 const yelpApiKey = process.env.YELP_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
 
 class placeController {
   static async getAllPlaces(req, res) {
     try {
-      const places = await Place.findAll({
-        include: ["place_category"],
-        where: {
-          user_id: req.auth.payload.sub,
-        },
+      const {
+        page = 1,
+        limit = 20,
+        sort = "created_at",
+        order = "desc",
+      } = req.validated || {};
+      const { items, count } = await PlacesService.getAllByUserPaginated(
+        req.auth.payload.sub,
+        { page, limit, sort, order },
+      );
+      const placeIds = (items || []).map((p) => p.id);
+      const counts = await NotesService.countByPlaceIds(
+        req.auth.payload.sub,
+        placeIds,
+      );
+      const itemsWithCount = (items || []).map((p) => ({
+        ...p,
+        notes_count: counts[p.id] || 0,
+      }));
+      const totalPages = Math.ceil((count || 0) / limit);
+      res.status(200).json({
+        places: itemsWithCount,
+        meta: { page, limit, total: count || 0, totalPages },
       });
-      res.status(200).json({ places });
-      // ! mise en forme retour
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getAllCategories(req, res) {
     try {
-      const categories = await Category.findAll({
-        include: [
-          {
-            model: Place,
-            as: "category_place",
-            where: { user_id: req.auth.payload.sub },
-            required: false,
-          },
-        ],
-      });
+      const categories = await CategoryService.getAll();
 
       const formattedData = categories.map((category) => {
         return {
@@ -45,69 +54,70 @@ class placeController {
 
       res.status(200).json(formattedData);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getAllTags(req, res) {
-    const { categorylabel } = req.headers;
+    const categorylabel =
+      req.validated?.categorylabel ||
+      req.query.categorylabel ||
+      req.params.categorylabel ||
+      req.headers.categorylabel;
     try {
-      const places = await Tag.findAll({
-        include: [
-          {
-            model: Place,
-            include: [
-              {
-                model: Category,
-                as: "place_category",
-                where: { label: categorylabel },
-              },
-            ],
-            where: {
-              user_id: req.auth.payload.sub,
-            },
-          },
-        ],
-      });
-      console.dir(`places ${JSON.stringify(places)}`);
-      res.status(200).json(places);
+      const tags = await TagService.findByCategoryForUser(
+        categorylabel,
+        req.auth.payload.sub,
+      );
+      res.status(200).json(tags);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getOneCategory(req, res) {
-    const { categorylabel } = req.headers;
+    const categorylabel =
+      req.validated?.categorylabel ||
+      req.query.categorylabel ||
+      req.params.categorylabel ||
+      req.headers.categorylabel;
     try {
-      const category = await Category.findOne({
-        where: [{ label: categorylabel }],
-      });
+      const category = await CategoryService.getOneByLabel(categorylabel);
       res.status(200).json({ category });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getPlacesByCategory(req, res) {
-    const { categorylabel } = req.headers;
+    const categorylabel =
+      req.validated?.categorylabel ||
+      req.query.categorylabel ||
+      req.params.categorylabel ||
+      req.headers.categorylabel;
     try {
-      const places = await Place.findAll({
-        include: [
-          {
-            model: Category,
-            as: "place_category",
-            where: { label: categorylabel },
-          },
-        ],
-        where: {
-          user_id: req.auth.payload.sub,
-        },
-      });
+      const {
+        page = 1,
+        limit = 20,
+        sort = "created_at",
+        order = "desc",
+      } = req.query || {};
+      const { items, count } =
+        await PlacesService.getAllByCategoryLabelPaginated(
+          req.auth.payload.sub,
+          categorylabel,
+          { page: Number(page) || 1, limit: Number(limit) || 20, sort, order },
+        );
+      const placeIds = (items || []).map((p) => p.id);
+      const counts = await NotesService.countByPlaceIds(
+        req.auth.payload.sub,
+        placeIds,
+      );
 
       // data received from db {}[]
       // {"address": "Rue des Acacias, Pont de Viarmes - Nod Hue, 22300 Lannion, France", "category_id": 2, "comment": "commentaire constructif !", "cover": "", "created_at": "2023-03-21T22:10:57.462Z", "favorite": true, "googleid": "ChIJm2gcO-srEkgRr54zI_oRT1A", "id": 2, "latitude": 48.7308695, "longitude": -3.4658228, "name": "Aziza", "place_category": {"created_at": "2023-03-21T20:44:25.116Z", "id": 2, "label": "Restaurant", "label_en": "a Restaurant", "label_fr": "un Restaurant", "updated_at": null}, "rating": 4, "slug": "aziza", "updated_at": "2023-03-21T22:10:57.462Z", "user_id": "auth0|64c2d126f68758196e9d0006", "yelpid": null}
 
-      const formattedData = places.map((place) => {
+      const formattedData = (items || []).map((place) => {
         return {
           address: place.address,
           category_id: place.category_id,
@@ -122,47 +132,53 @@ class placeController {
           favorite: place.favorite,
           googleid: place.googleid,
           yelpid: place.yelpid,
+          notes_count: counts[place.id] || 0,
         };
       });
 
-      res.status(200).json(formattedData);
+      const totalPages = Math.ceil((count || 0) / (Number(limit) || 20));
+      res.status(200).json({
+        places: formattedData,
+        meta: {
+          page: Number(page) || 1,
+          limit: Number(limit) || 20,
+          total: count || 0,
+          totalPages,
+        },
+      });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getLatestPlaces(req, res) {
     try {
-      const places = await Place.findAll({
-        include: ["place_category"],
-        where: {
-          user_id: req.auth.payload.sub,
-        },
-        order: [["created_at", "DESC"]],
-        limit: 9,
-      });
+      const limit = Number(req?.validated?.limit ?? req?.query?.limit ?? 9);
+      const places = await PlacesService.getLatestByUser(
+        req.auth.payload.sub,
+        limit,
+      );
       res.status(200).json({ places });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getLatestPlacesByCategory(req, res) {
-    const { categorylabel } = req.headers;
+    const categorylabel =
+      req.validated?.categorylabel ||
+      req.query.categorylabel ||
+      req.params.categorylabel ||
+      req.headers.categorylabel;
     try {
-      const places = await Place.findAll({
-        include: [
-          {
-            model: Category,
-            as: "place_category",
-            where: { label: categorylabel },
-          },
-        ],
-        where: {
-          user_id: req.auth.payload.sub,
-        },
-        order: [["created_at", "DESC"]],
-      });
+      const limit = Number(req?.validated?.limit ?? req?.query?.limit ?? 9);
+      let places = await PlacesService.getAllByCategoryLabel(
+        req.auth.payload.sub,
+        categorylabel,
+      );
+      places = (places || [])
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, limit);
       res.status(200).json({ places });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -171,21 +187,23 @@ class placeController {
 
   static async getPlaceById(req, res) {
     try {
-      const { placeid } = req.headers;
-      const place = await Place.findOne({
-        include: ["place_note", { model: Tag }, "place_category"],
-        where: {
-          id: placeid,
-          user_id: req.auth.payload.sub,
-        },
-      });
+      const placeId =
+        req.validated?.id ||
+        req.query.id ||
+        req.params.id ||
+        req.headers.placeid;
+      const place = await PlacesService.getPlaceById(
+        req.auth.payload.sub,
+        placeId,
+      );
 
       if (!place) {
         return res.status(404).json({ message: "Place not found" });
       }
 
-      let placeData = { ...place.dataValues };
+      let placeData = { ...place };
 
+      const timeoutMs = Number(process.env.HTTP_CLIENT_TIMEOUT_MS || 5000);
       if (placeData.yelpid) {
         try {
           const yelpData = await axios.get(
@@ -195,11 +213,13 @@ class placeController {
                 Authorization: `Bearer ${yelpApiKey}`,
                 Accept: "application/json",
               },
-            }
+              timeout: timeoutMs,
+            },
           );
           placeData = { ...placeData, yelp: { ...yelpData.data } };
         } catch (err) {
-          console.log(`Yelp data not found: ${err}`);
+          if (process.env.NODE_ENV !== "production")
+            console.log(`Yelp data not found: ${err}`);
         }
       }
 
@@ -211,8 +231,10 @@ class placeController {
         };
 
         try {
-          const googleData = await axios.get(url, { params });
-          console.log(googleData);
+          const googleData = await axios.get(url, {
+            params,
+            timeout: timeoutMs,
+          });
           placeData = { ...placeData, google: { ...googleData.data.result } };
         } catch (err) {
           console.log(`Google data not found: ${err}`);
@@ -228,7 +250,10 @@ class placeController {
         };
 
         try {
-          const googlePhoto = await axios.get(url, { params });
+          const googlePhoto = await axios.get(url, {
+            params,
+            timeout: timeoutMs,
+          });
           // console.log(googlePhoto.request.res.responseUrl);
           placeData = {
             ...placeData,
@@ -598,7 +623,11 @@ class placeController {
   // }
 
   static async placeFromApiById(req, res) {
-    const { place_id } = req.headers;
+    const place_id =
+      req.validated?.place_id ||
+      req.query.place_id ||
+      req.params.place_id ||
+      req.headers.place_id;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
@@ -610,14 +639,13 @@ class placeController {
       const googleData = await axios.get(url, { params });
       console.log(googleData.data.result);
       // placeData = { ...placeData, google:{...googleData.data.result} };
-      
+
       const categoryName = googleData.data.result.types[0];
-      const formattedCategoryName = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
-      const categoryInstance = await Category.findOne({
-        where: {
-          label: formattedCategoryName
-        }
-      });
+      const formattedCategoryName =
+        categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+      const categoryInstance = await Category.findOneByLabel(
+        formattedCategoryName,
+      );
 
       const formattedData = {
         name: googleData.data.result.name,
@@ -634,7 +662,7 @@ class placeController {
         website: googleData.data.result.website,
         google_cover: googleData.data.result.google_cover,
       };
-      
+
       res.status(200).json(formattedData);
     } catch (err) {
       console.log(`Google data not found: ${err}`);
@@ -643,7 +671,16 @@ class placeController {
 
   static async placeFromApiByCoords(req, res) {
     try {
-      const { lat, lng } = req.headers;
+      const lat =
+        req.validated?.lat ||
+        req.query.lat ||
+        req.params.lat ||
+        req.headers.lat;
+      const lng =
+        req.validated?.lng ||
+        req.query.lng ||
+        req.params.lng ||
+        req.headers.lng;
       const yelpData = await axios.get(
         // `https://api.yelp.com/v3/businesses/search?term=${location}&sort_by=best_match&limit=20`,
         `https://api.yelp.com/v3/businesses/search?latitude=${lat}&longitude=${lng}&sort_by=best_match&limit=5`,
@@ -652,18 +689,21 @@ class placeController {
             Authorization: `Bearer ${yelpApiKey}`,
             accept: "application/json",
           },
-        }
+        },
       );
       res.status(200).json(yelpData.data);
     } catch (err) {
-      console.log(req.headers);
-      console.log(`Yelp data not found: ${err}`);
+      if (process.env.NODE_ENV !== "production")
+        console.log(`Yelp data not found: ${err}`);
     }
   }
 
   static async placeFromApiByName(req, res) {
     try {
-      const { location, lat, lng } = req.headers;
+      const location =
+        req.query.location || req.params.location || req.headers.location;
+      const lat = req.query.lat || req.params.lat || req.headers.lat;
+      const lng = req.query.lng || req.params.lng || req.headers.lng;
       const yelpData = await axios.get(
         // `https://api.yelp.com/v3/businesses/search?term=${location}&sort_by=best_match&limit=20`,
         `https://api.yelp.com/v3/businesses/search?location=${location}&latitude=${lat}&longitude=${lng}&sort_by=distance&limit=5`,
@@ -672,7 +712,7 @@ class placeController {
             Authorization: `Bearer ${yelpApiKey}`,
             accept: "application/json",
           },
-        }
+        },
       );
       res.status(200).json(yelpData.data);
     } catch (err) {
@@ -682,7 +722,20 @@ class placeController {
   }
 
   static async getLocationAutoComplete(req, res) {
-    const { location, lat, lng, types } = req.headers;
+    const location =
+      req.validated?.location ||
+      req.query.location ||
+      req.params.location ||
+      req.headers.location;
+    const lat =
+      req.validated?.lat || req.query.lat || req.params.lat || req.headers.lat;
+    const lng =
+      req.validated?.lng || req.query.lng || req.params.lng || req.headers.lng;
+    const types =
+      req.validated?.types ||
+      req.query.types ||
+      req.params.types ||
+      req.headers.types;
     const url = "https://maps.googleapis.com/maps/api/place/autocomplete/json";
     const params = {
       input: location,
@@ -756,7 +809,7 @@ class placeController {
             // types: prediction.types,
             main_text_matched_substrings,
           };
-        }
+        },
       );
       res.status(200).json(formattedPredictions);
     } catch (error) {
@@ -867,26 +920,28 @@ class placeController {
   // }
 
   static async getLocationExisting(req, res) {
-    const { location } = req.headers;
+    const location =
+      req.validated?.location ||
+      req.query.location ||
+      req.params.location ||
+      req.headers.location;
     try {
-      const existingPlaces = await Place.findAll({
-        where: {
-          user_id: req.auth.payload.sub,
-          [Op.or]: [
-            { address: { [Op.iLike]: `%${location}%` } },
-            { name: { [Op.iLike]: `%${location}%` } },
-          ],
-        },
-        include: ["place_note"],
-      });
+      const existingPlaces = await PlacesService.findExisting(
+        req.auth.payload.sub,
+        location,
+      );
       res.status(200).json({ existingPlaces });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async getPlaceDetails(req, res) {
-    const { place_id } = req.headers;
+    const place_id =
+      req.validated?.place_id ||
+      req.query.place_id ||
+      req.params.place_id ||
+      req.headers.place_id;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
@@ -898,40 +953,36 @@ class placeController {
       // console.log(response.data.result);
       res.status(200).json(response.data.result);
     } catch (error) {
-      console.log(req.headers);
-      console.log(`Google data not found: ${error}`);
+      if (process.env.NODE_ENV !== "production")
+        console.log(`Google data not found: ${error}`);
     }
   }
 
   static async updatePlace(req, res) {
     try {
-      console.log(req.headers);
-      const { placeid, favorite } = req.headers;
-      const updated = await Place.update(
-        { favorite },
-        {
-          where: {
-            id: placeid,
-            user_id: req.auth.payload.sub,
-          },
-        }
+      const source = req.validated || req.body || {};
+      const { placeid, id, favorite } = source;
+      const placeId =
+        placeid || id || req.params.id || req.query.id || req.headers.placeid;
+      const updatedPlace = await PlacesService.updateFavorite(
+        req.auth.payload.sub,
+        placeId,
+        favorite === "true" || favorite === true,
       );
-
-      if (updated) {
-        const updatedPlace = await Place.findByPk(placeid);
+      if (updatedPlace) {
         res.status(200).json({ place: updatedPlace });
       } else {
         res.status(404).json({ message: "Place not found" });
       }
     } catch (error) {
-      console.trace(error);
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   // ! rating doit pouvoir etre 0
   static async createPlace(req, res) {
     try {
+      const source = req.validated || req.body || {};
       const {
         name,
         address,
@@ -945,69 +996,50 @@ class placeController {
         favorite,
         googleid,
         tags,
-      } = req.body;
-
-      const place = await Place.create(
+      } = source;
+      const { place, tags: placeTags } = await PlacesService.createPlace(
+        req.auth.payload.sub,
         {
           name,
           address,
           comment,
           cover,
-          categoryid,
+          category_id,
           latitude,
           longitude,
           rating,
           slug,
           favorite,
           googleid,
-          user_id: req.auth.payload.sub,
-          tags: tags,
+          tags,
         },
-        {
-          include: {
-            model: Tag,
-          },
-        }
       );
-
-      for (const tag of tags) {
-        const [createdTag, _] = await Tag.findOrCreate({
-          where: { label: tag.label },
-          defaults: { label: tag.label },
-        });
-        await place.addTag(createdTag);
-      }
-
-      // Récupérer les tags associés à la place
-      const placeTags = await place.getTags();
 
       res.status(201).json({ place, tags: placeTags });
     } catch (error) {
-      console.trace(error);
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
   static async createPlace2(req, res) {
-
     const allowed = [
-      'name',
-      'slug',
-      'location',
-      'address',
-      'latitude',
-      'longitude',
-      'googleid',
-      'yelpid',
-      'rating',
-      'cover',
-      'favorite',
-      'comment',
-      'category_id',
-      'tags',
+      "name",
+      "slug",
+      "location",
+      "address",
+      "latitude",
+      "longitude",
+      "googleid",
+      "yelpid",
+      "rating",
+      "cover",
+      "favorite",
+      "comment",
+      "category_id",
+      "tags",
     ];
     let params = [];
-    let setStr = '';
+    let setStr = "";
 
     for (var key in req.body) {
       if (allowed.some((allowedKey) => allowedKey === key)) {
@@ -1022,20 +1054,15 @@ class placeController {
     } catch (err) {
       console.error(err);
       res.status(500).json({
-        message: err.message
+        message: err.message,
       });
     }
   }
 
   static async deletePlace(req, res) {
     try {
-      const { placeid } = req.headers;
-      const deleted = await Place.destroy({
-        where: {
-          id: placeid,
-          user_id: req.auth.payload.sub,
-        },
-      });
+      const id = req.params.id || req.query.id || req.headers.placeid;
+      const deleted = await PlacesService.deletePlace(req.auth.payload.sub, id);
       if (deleted) {
         res.status(200).json({ message: "Place deleted" });
       } else {
@@ -1048,4 +1075,4 @@ class placeController {
   }
 }
 
-module.exports = placeController;
+export default placeController;

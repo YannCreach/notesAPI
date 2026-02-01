@@ -2,9 +2,9 @@
  * Required External Modules and Interfaces
  */
 
-const express = require("express");
-const { getPublicMessage, getProtectedMessage } = require("./messages.service");
-const { checkJwt } = require("../authz/check-jwt");
+import express from "express";
+import { getPublicMessage, getProtectedMessage } from "./messages.service.js";
+import { checkJwt } from "../authz/check-jwt.js";
 
 /**
  * Router Definition
@@ -28,6 +28,4 @@ messagesRouter.get("/protected-message", checkJwt, (req, res) => {
   res.status(200).send(message);
 });
 
-module.exports = {
-  messagesRouter,
-};
+export { messagesRouter };
