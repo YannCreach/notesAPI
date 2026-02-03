@@ -41,6 +41,10 @@ class PlacesService {
     return await Place.findLatestByUser(userId, limit);
   }
 
+  static async getLatestByCategoryLabel(userId, categoryLabel, limit = 9) {
+    return await Place.findLatestByCategoryLabel(userId, categoryLabel, limit);
+  }
+
   static async deletePlace(userId, placeId) {
     return await Place.delete(placeId, userId);
   }

@@ -2,15 +2,10 @@ import { Note } from "../models/index.js";
 import NotesService from "../services/notes.service.js";
 
 class noteController {
-  static async getAllNotes(req, res) {
+  static async getAllNotes(req, res, next) {
     // assert.ok('user_id' in req.body, 'A user ID is required');
     try {
-      const placeId =
-        req.validated?.id ||
-        req.params.id ||
-        req.query.place_id ||
-        req.body.place_id ||
-        req.headers.place_id;
+      const placeId = req.params.id;
       const {
         page = 1,
         limit = 20,
@@ -37,15 +32,10 @@ class noteController {
     }
   }
 
-  static async getNoteById(req, res) {
+  static async getNoteById(req, res, next) {
     // assert.ok('id' in req.body, 'A user ID is required');
     try {
-      const id =
-        req.validated?.id ||
-        req.params.id ||
-        req.query.id ||
-        req.body.id ||
-        req.headers.id;
+      const id = req.params.id;
       const note = await NotesService.getById(id);
       if (note) {
         res.status(200).json({ note });
@@ -68,11 +58,10 @@ class noteController {
   //   }
   // }
 
-  static async updateNote(req, res) {
+  static async updateNote(req, res, next) {
     try {
-      const source = req.validated || req.body || {};
-      const id = req.params?.id || source.noteid;
-      const { favorite } = source;
+      const id = req.params?.id;
+      const { favorite } = req.validated || req.body || {};
       const updatedNote = await NotesService.updateFavorite(
         req.auth.payload.sub,
         id,
@@ -88,10 +77,10 @@ class noteController {
     }
   }
 
-  static async addTags(req, res) {
+  static async addTags(req, res, next) {
     try {
-      const noteId = req.params?.id || req.validated?.id || req.body?.id;
-      const tags = req.validated?.tags || req.body?.tags || [];
+      const noteId = req.params?.id;
+      const tags = req.validated?.tags || [];
       const result = await NotesService.addTags(
         req.auth.payload.sub,
         Number(noteId),
@@ -103,9 +92,9 @@ class noteController {
     }
   }
 
-  static async getTags(req, res) {
+  static async getTags(req, res, next) {
     try {
-      const noteId = req.params?.id || req.validated?.id || req.body?.id;
+      const noteId = req.params?.id;
       const tags = await NotesService.getTags(Number(noteId));
       return res.status(200).json({ tags: tags || [] });
     } catch (error) {
@@ -113,10 +102,10 @@ class noteController {
     }
   }
 
-  static async removeTags(req, res) {
+  static async removeTags(req, res, next) {
     try {
-      const noteId = req.params?.id || req.validated?.id || req.body?.id;
-      const tags = req.validated?.tags || req.body?.tags || [];
+      const noteId = req.params?.id;
+      const tags = req.validated?.tags || [];
       const result = await NotesService.removeTags(
         req.auth.payload.sub,
         Number(noteId),

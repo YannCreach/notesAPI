@@ -21,7 +21,6 @@ export const CreatePlaceBodySchema = z.object({
 });
 
 export const UpdatePlaceBodySchema = z.object({
-  id: z.union([z.string(), z.number()]),
   favorite: z.union([z.boolean(), z.enum(["true", "false"])]),
 });
 

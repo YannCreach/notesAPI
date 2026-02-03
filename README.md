@@ -103,7 +103,11 @@ Le serveur lit `SUPABASE_URL` et la clé depuis `.env`.
 
 ## API
 
-Toutes les routes nécessitent un JWT valide (Auth0). Les paramètres passent par route params et/ou query; les headers ne sont plus utilisés pour passer des identifiants fonctionnels.
+Toutes les routes nécessitent un JWT valide (Auth0), sauf `GET /health`. Les paramètres passent par route params et/ou query; les headers ne sont plus utilisés pour passer des identifiants fonctionnels.
+
+### Health
+
+- GET `/health`
 
 ### Places
 
@@ -184,6 +188,9 @@ curl -X POST -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json
 curl -X DELETE -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" \
   -d '{"tags":[{"label":"spicy"}]}' \
   http://localhost:3000/notes/42/tags
+
+# Healthcheck (pas d'auth)
+curl http://localhost:3000/health
 ```
 
 ---
@@ -243,6 +250,7 @@ Ce chapitre formalise les conventions nécessaires pour refactorer le front en c
   - Format: `{ items|places|notes: [...], meta: { page, limit, total, totalPages } }`.
 - Ressources usuelles:
   - `GET /places`: `{ places: Array<PlaceWithCount>, meta }`.
+  - `GET /categories`: `{ categories: Array<Category> }`.
   - `GET /categories/:label/places`: `{ places: Array<PlaceWithCount>, meta }`.
   - `GET /latestplaces`: `{ places: Array<Place> }`.
   - `GET /place/:id`: `Place` enrichi potentiellement avec `{ google, yelp, google_cover }`.
@@ -255,6 +263,13 @@ Ce chapitre formalise les conventions nécessaires pour refactorer le front en c
   - `POST /place`: `{ place: Place, tags?: Array<Tag> }` (201 créé).
   - `PATCH /place/:id`: `{ place: Place }` (favori mis à jour).
   - `DELETE /place/:id`: `{ message: "Place deleted" }` (200), ou 404 si introuvable.
+  - `GET /categories/:categorylabel/tags`: `{ tags: Array<Tag> }`.
+
+### Paramètres optionnels
+
+- `GET /place/:id`:
+  - `include=google,yelp` pour inclure les détails Google et/ou Yelp.
+  - `include=none` (ou `include=`) pour n'inclure aucun appel externe.
 
 ### Modèles (types indicatifs)
 

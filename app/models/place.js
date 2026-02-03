@@ -89,6 +89,20 @@ class Place {
     return { items: data || [], count: count ?? 0 };
   }
 
+  static async findLatestByCategoryLabel(userId, categoryLabel, limit = 9) {
+    const { data, error } = await supabase
+      .from("place")
+      .select(
+        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
+      )
+      .eq("user_id", userId)
+      .eq("category.label", categoryLabel)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
   static async findByIdForUser(placeId, userId) {
     const { data: place, error: e1 } = await supabase
       .from("place")

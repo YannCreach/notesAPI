@@ -1,4 +1,4 @@
-import { Place, Category, Tag } from "../models/index.js";
+import { Category } from "../models/index.js";
 import PlacesService from "../services/places.service.js";
 import NotesService from "../services/notes.service.js";
 import CategoryService from "../services/category.service.js";
@@ -7,8 +7,22 @@ import axios from "axios";
 const yelpApiKey = process.env.YELP_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
 
+const parseInclude = (value) => {
+  if (value === undefined || value === null) return null;
+  const raw = String(value).trim().toLowerCase();
+  if (!raw || raw === "none" || raw === "false" || raw === "0") {
+    return new Set();
+  }
+  return new Set(
+    raw
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean),
+  );
+};
+
 class placeController {
-  static async getAllPlaces(req, res) {
+  static async getAllPlaces(req, res, next) {
     try {
       const {
         page = 1,
@@ -39,7 +53,7 @@ class placeController {
     }
   }
 
-  static async getAllCategories(req, res) {
+  static async getAllCategories(req, res, next) {
     try {
       const categories = await CategoryService.getAll();
 
@@ -52,35 +66,27 @@ class placeController {
         };
       });
 
-      res.status(200).json(formattedData);
+      res.status(200).json({ categories: formattedData });
     } catch (error) {
       return next(error);
     }
   }
 
-  static async getAllTags(req, res) {
-    const categorylabel =
-      req.validated?.categorylabel ||
-      req.query.categorylabel ||
-      req.params.categorylabel ||
-      req.headers.categorylabel;
+  static async getAllTags(req, res, next) {
+    const categorylabel = req.params.categorylabel;
     try {
       const tags = await TagService.findByCategoryForUser(
         categorylabel,
         req.auth.payload.sub,
       );
-      res.status(200).json(tags);
+      res.status(200).json({ tags });
     } catch (error) {
       return next(error);
     }
   }
 
-  static async getOneCategory(req, res) {
-    const categorylabel =
-      req.validated?.categorylabel ||
-      req.query.categorylabel ||
-      req.params.categorylabel ||
-      req.headers.categorylabel;
+  static async getOneCategory(req, res, next) {
+    const categorylabel = req.params.categorylabel;
     try {
       const category = await CategoryService.getOneByLabel(categorylabel);
       res.status(200).json({ category });
@@ -89,19 +95,15 @@ class placeController {
     }
   }
 
-  static async getPlacesByCategory(req, res) {
-    const categorylabel =
-      req.validated?.categorylabel ||
-      req.query.categorylabel ||
-      req.params.categorylabel ||
-      req.headers.categorylabel;
+  static async getPlacesByCategory(req, res, next) {
+    const categorylabel = req.params.categorylabel;
     try {
       const {
         page = 1,
         limit = 20,
         sort = "created_at",
         order = "desc",
-      } = req.query || {};
+      } = req.validated || {};
       const { items, count } =
         await PlacesService.getAllByCategoryLabelPaginated(
           req.auth.payload.sub,
@@ -151,7 +153,7 @@ class placeController {
     }
   }
 
-  static async getLatestPlaces(req, res) {
+  static async getLatestPlaces(req, res, next) {
     try {
       const limit = Number(req?.validated?.limit ?? req?.query?.limit ?? 9);
       const places = await PlacesService.getLatestByUser(
@@ -164,34 +166,24 @@ class placeController {
     }
   }
 
-  static async getLatestPlacesByCategory(req, res) {
-    const categorylabel =
-      req.validated?.categorylabel ||
-      req.query.categorylabel ||
-      req.params.categorylabel ||
-      req.headers.categorylabel;
+  static async getLatestPlacesByCategory(req, res, next) {
+    const categorylabel = req.params.categorylabel;
     try {
       const limit = Number(req?.validated?.limit ?? req?.query?.limit ?? 9);
-      let places = await PlacesService.getAllByCategoryLabel(
+      const places = await PlacesService.getLatestByCategoryLabel(
         req.auth.payload.sub,
         categorylabel,
+        limit,
       );
-      places = (places || [])
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, limit);
       res.status(200).json({ places });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 
-  static async getPlaceById(req, res) {
+  static async getPlaceById(req, res, next) {
     try {
-      const placeId =
-        req.validated?.id ||
-        req.query.id ||
-        req.params.id ||
-        req.headers.placeid;
+      const placeId = req.params.id;
       const place = await PlacesService.getPlaceById(
         req.auth.payload.sub,
         placeId,
@@ -204,7 +196,11 @@ class placeController {
       let placeData = { ...place };
 
       const timeoutMs = Number(process.env.HTTP_CLIENT_TIMEOUT_MS || 5000);
-      if (placeData.yelpid) {
+      const include = parseInclude(req.query?.include);
+      const shouldIncludeYelp = include ? include.has("yelp") : true;
+      const shouldIncludeGoogle = include ? include.has("google") : true;
+
+      if (placeData.yelpid && shouldIncludeYelp) {
         try {
           const yelpData = await axios.get(
             `https://api.yelp.com/v3/businesses/${placeData.yelpid}`,
@@ -223,7 +219,7 @@ class placeController {
         }
       }
 
-      if (placeData.googleid) {
+      if (placeData.googleid && shouldIncludeGoogle) {
         const url = "https://maps.googleapis.com/maps/api/place/details/json";
         const params = {
           place_id: placeData.googleid,
@@ -241,7 +237,11 @@ class placeController {
         }
       }
 
-      if (placeData.google?.photos && placeData.google.photos.length > 0) {
+      if (
+        shouldIncludeGoogle &&
+        placeData.google?.photos &&
+        placeData.google.photos.length > 0
+      ) {
         const url = "https://maps.googleapis.com/maps/api/place/photo";
         const params = {
           key: googleApiKey,
@@ -268,9 +268,8 @@ class placeController {
       }
       //console.log(placeData);
       res.status(200).json(placeData);
-    } catch (err) {
-      console.log(`Error retrieving place data: ${err}`);
-      res.status(500).json({ message: "Internal server error" });
+    } catch (error) {
+      return next(error);
     }
   }
 
@@ -622,12 +621,8 @@ class placeController {
   // 	"google_cover": "https://lh3.googleusercontent.com/places/ANJU3DtL0nCIIl4a9RqrBT2GpDIVEwSYFSQUEb_EylxmAp033xRGHx-iwyzaMzUWKxK2IXnhNtDD68wl_mpA9OF_arlgT1KeijG4Thc=s1600-w400"
   // }
 
-  static async placeFromApiById(req, res) {
-    const place_id =
-      req.validated?.place_id ||
-      req.query.place_id ||
-      req.params.place_id ||
-      req.headers.place_id;
+  static async placeFromApiById(req, res, next) {
+    const place_id = req.query.place_id;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
@@ -664,23 +659,14 @@ class placeController {
       };
 
       res.status(200).json(formattedData);
-    } catch (err) {
-      console.log(`Google data not found: ${err}`);
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async placeFromApiByCoords(req, res) {
+  static async placeFromApiByCoords(req, res, next) {
     try {
-      const lat =
-        req.validated?.lat ||
-        req.query.lat ||
-        req.params.lat ||
-        req.headers.lat;
-      const lng =
-        req.validated?.lng ||
-        req.query.lng ||
-        req.params.lng ||
-        req.headers.lng;
+      const { lat, lng } = req.query;
       const yelpData = await axios.get(
         // `https://api.yelp.com/v3/businesses/search?term=${location}&sort_by=best_match&limit=20`,
         `https://api.yelp.com/v3/businesses/search?latitude=${lat}&longitude=${lng}&sort_by=best_match&limit=5`,
@@ -692,18 +678,14 @@ class placeController {
         },
       );
       res.status(200).json(yelpData.data);
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production")
-        console.log(`Yelp data not found: ${err}`);
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async placeFromApiByName(req, res) {
+  static async placeFromApiByName(req, res, next) {
     try {
-      const location =
-        req.query.location || req.params.location || req.headers.location;
-      const lat = req.query.lat || req.params.lat || req.headers.lat;
-      const lng = req.query.lng || req.params.lng || req.headers.lng;
+      const { location, lat, lng } = req.query;
       const yelpData = await axios.get(
         // `https://api.yelp.com/v3/businesses/search?term=${location}&sort_by=best_match&limit=20`,
         `https://api.yelp.com/v3/businesses/search?location=${location}&latitude=${lat}&longitude=${lng}&sort_by=distance&limit=5`,
@@ -715,27 +697,13 @@ class placeController {
         },
       );
       res.status(200).json(yelpData.data);
-    } catch (err) {
-      console.log(req.headers);
-      console.log(`Yelp data not found: ${err}`);
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async getLocationAutoComplete(req, res) {
-    const location =
-      req.validated?.location ||
-      req.query.location ||
-      req.params.location ||
-      req.headers.location;
-    const lat =
-      req.validated?.lat || req.query.lat || req.params.lat || req.headers.lat;
-    const lng =
-      req.validated?.lng || req.query.lng || req.params.lng || req.headers.lng;
-    const types =
-      req.validated?.types ||
-      req.query.types ||
-      req.params.types ||
-      req.headers.types;
+  static async getLocationAutoComplete(req, res, next) {
+    const { location, lat, lng, types } = req.query;
     const url = "https://maps.googleapis.com/maps/api/place/autocomplete/json";
     const params = {
       input: location,
@@ -813,10 +781,7 @@ class placeController {
       );
       res.status(200).json(formattedPredictions);
     } catch (error) {
-      console.error(`Error fetching Google data: ${error.message}`);
-      res
-        .status(500)
-        .json({ error: "An error occurred while fetching data from Google" });
+      return next(error);
     }
   }
 
@@ -919,12 +884,8 @@ class placeController {
   //   }
   // }
 
-  static async getLocationExisting(req, res) {
-    const location =
-      req.validated?.location ||
-      req.query.location ||
-      req.params.location ||
-      req.headers.location;
+  static async getLocationExisting(req, res, next) {
+    const { location } = req.query;
     try {
       const existingPlaces = await PlacesService.findExisting(
         req.auth.payload.sub,
@@ -936,12 +897,8 @@ class placeController {
     }
   }
 
-  static async getPlaceDetails(req, res) {
-    const place_id =
-      req.validated?.place_id ||
-      req.query.place_id ||
-      req.params.place_id ||
-      req.headers.place_id;
+  static async getPlaceDetails(req, res, next) {
+    const { place_id } = req.query;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
@@ -953,17 +910,14 @@ class placeController {
       // console.log(response.data.result);
       res.status(200).json(response.data.result);
     } catch (error) {
-      if (process.env.NODE_ENV !== "production")
-        console.log(`Google data not found: ${error}`);
+      return next(error);
     }
   }
 
-  static async updatePlace(req, res) {
+  static async updatePlace(req, res, next) {
     try {
-      const source = req.validated || req.body || {};
-      const { placeid, id, favorite } = source;
-      const placeId =
-        placeid || id || req.params.id || req.query.id || req.headers.placeid;
+      const { favorite } = req.validated || req.body || {};
+      const placeId = req.params.id;
       const updatedPlace = await PlacesService.updateFavorite(
         req.auth.payload.sub,
         placeId,
@@ -980,7 +934,7 @@ class placeController {
   }
 
   // ! rating doit pouvoir etre 0
-  static async createPlace(req, res) {
+  static async createPlace(req, res, next) {
     try {
       const source = req.validated || req.body || {};
       const {
@@ -1059,9 +1013,9 @@ class placeController {
     }
   }
 
-  static async deletePlace(req, res) {
+  static async deletePlace(req, res, next) {
     try {
-      const id = req.params.id || req.query.id || req.headers.placeid;
+      const id = req.params.id;
       const deleted = await PlacesService.deletePlace(req.auth.payload.sub, id);
       if (deleted) {
         res.status(200).json({ message: "Place deleted" });
@@ -1069,8 +1023,7 @@ class placeController {
         res.status(404).json({ message: "Place not found" });
       }
     } catch (error) {
-      console.trace(error);
-      res.status(500).json({ message: error.message });
+      return next(error);
     }
   }
 }

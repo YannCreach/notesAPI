@@ -177,7 +177,7 @@ router.delete(
 );
 
 router.get("/", (req, res) => {
-  let filePath = path.join(__dirname, "../index.html");
+  let filePath = path.join(__dirname, "../assets/index.html");
   res.sendFile(filePath);
 });
 
