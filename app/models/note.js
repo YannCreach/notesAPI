@@ -1,10 +1,32 @@
 import supabase, { supabaseAdmin } from "../database.js";
 
 class Note {
+  static async create({ userId, placeId, payload }) {
+    const insertPayload = {
+      user_id: userId,
+      place_id: Number(placeId),
+      name: payload.name,
+      ...(payload.price !== undefined ? { price: payload.price } : {}),
+      ...(payload.cover !== undefined ? { cover: payload.cover } : {}),
+      ...(payload.rating !== undefined ? { rating: payload.rating } : {}),
+      ...(payload.favorite !== undefined ? { favorite: payload.favorite } : {}),
+      ...(payload.comment !== undefined ? { comment: payload.comment } : {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("note")
+      .insert([insertPayload])
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
   static async findAllByPlace(placeId) {
     const { data, error } = await supabase
       .from("note")
-      .select("*")
+      .select("id,name,price,cover,rating,favorite,comment,created_at,updated_at")
       .eq("place_id", placeId);
     if (error) throw new Error(error.message);
     return data || [];
@@ -20,7 +42,7 @@ class Note {
     const { data, error, count } = await supabase
       .from("note")
       .select(
-        "id,name,option,price,cover,favorite,comment,created_at,updated_at",
+        "id,name,price,cover,rating,favorite,comment,created_at,updated_at",
         { count: "exact" },
       )
       .eq("place_id", placeId)
@@ -34,7 +56,7 @@ class Note {
   static async findByPk(id) {
     const { data, error } = await supabase
       .from("note")
-      .select("*")
+      .select("id,place_id,user_id,name,price,cover,rating,favorite,comment,created_at,updated_at")
       .eq("id", id)
       .single();
     if (error) throw new Error(error.message);
@@ -53,12 +75,24 @@ class Note {
     return data;
   }
 
+  static async updateFields(noteId, userId, updates) {
+    const { data, error } = await supabaseAdmin
+      .from("note")
+      .update({ ...updates })
+      .eq("id", noteId)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
   static async addTags({ userId, noteId, tags = [] }) {
     const cleanTags = (tags || []).filter((t) => t?.label);
     if (cleanTags.length === 0) return { tags: [] };
 
     const { data: upsertedTags, error: eTagBatch } = await supabaseAdmin
-      .from("tag")
+      .from("note_tag")
       .upsert(
         cleanTags.map((t) => ({ label: t.label })),
         {
@@ -88,10 +122,10 @@ class Note {
   static async getTags(noteId) {
     const { data, error } = await supabase
       .from("note_has_tag")
-      .select("tag(id,label)")
+      .select("note_tag(id,label)")
       .eq("note_id", noteId);
     if (error) throw new Error(error.message);
-    const tags = (data || []).map((r) => r.tag).filter(Boolean);
+    const tags = (data || []).map((r) => r.note_tag).filter(Boolean);
     return tags;
   }
 
@@ -105,7 +139,7 @@ class Note {
     }
 
     const { data: tagRows, error: eSel } = await supabase
-      .from("tag")
+      .from("note_tag")
       .select("id,label")
       .in("label", labels);
     if (eSel) throw new Error(eSel.message);

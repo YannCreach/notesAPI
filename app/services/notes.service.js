@@ -1,8 +1,16 @@
 import Note from "../models/note.js";
 
 class NotesService {
+  static async create(userId, placeId, payload) {
+    return await Note.create({ userId, placeId, payload });
+  }
+
   static async updateFavorite(userId, noteId, favorite) {
     return await Note.updateFavorite(noteId, userId, favorite);
+  }
+
+  static async updateFields(userId, noteId, updates) {
+    return await Note.updateFields(noteId, userId, updates);
   }
 
   static async getAllByPlace(placeId) {

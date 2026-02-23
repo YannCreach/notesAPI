@@ -1,7 +1,10 @@
 import express from "express";
-import { auth } from "express-oauth2-jwt-bearer";
 import router from "./app/router.js";
 import { notFound, errorHandler } from "./app/middleware/errorHandler.js";
+import { validate } from "./app/middleware/validate.js";
+import { checkSupabaseJwt } from "./app/middleware/checkSupabaseJwt.js";
+import userController from "./app/controllers/userController.js";
+import { RegisterBodySchema } from "./app/validators/user.schemas.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
@@ -11,14 +14,6 @@ const app = express();
 dotenv.config();
 
 const serverPort = process.env.SERVER_PORT;
-
-const jwtCheck = auth({
-  audience: process.env.AUTH_AUDIENCE || "https://www.yanncrea.ch/notesAPI",
-  issuerBaseURL:
-    process.env.AUTH_ISSUER_BASE_URL ||
-    "https://dev-n0lb4ireiqf83cv2.eu.auth0.com/",
-  tokenSigningAlg: "RS256",
-});
 
 // Security headers
 app.use(helmet());
@@ -45,7 +40,10 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use(jwtCheck);
+// Public route: register user in Supabase Auth (no JWT required)
+app.post("/register", validate(RegisterBodySchema, "body"), userController.register);
+
+app.use(checkSupabaseJwt);
 
 app.get("/authorized", function (req, res) {
   res.send("Secured Resource");

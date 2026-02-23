@@ -26,8 +26,6 @@ SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 
 # Auth / APIs externes
-AUTH_ISSUER_BASE_URL=...
-AUTH_AUDIENCE=...
 GOOGLE_API_KEY=...
 YELP_API_KEY=...
 
@@ -49,13 +47,9 @@ Option B — via `psql`:
 ```bash
 psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/create_db.sql
 psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/seed_db.sql
-psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/rls_update.sql
-## Revenir à Supabase Auth (auth.uid())
-psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/rls_revert_to_auth_uid.sql
-
-## Indexation conseillée (performances)
-psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/perf_indexes.sql
 ```
+
+`create_db.sql` contient tout : tables, contraintes, indexes et politiques RLS.
 
 **Tests**
 
@@ -77,19 +71,6 @@ npm test
 npm run test:watch
 ```
 
-### Migration des contraintes d’unicité (par utilisateur)
-
-Remplace les uniques globaux sur `place.slug/googleid/yelpid` par des contraintes composites `(user_id, slug/googleid/yelpid)`.
-
-```bash
-psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require" -f ./db/constraints.sql
-```
-
-Ce script:
-
-- Remplace les `UNIQUE` globaux de `place.slug/googleid/yelpid` par des contraintes composites `(user_id, slug/googleid/yelpid)`
-- Déduplique les tables de liaison et ajoute `UNIQUE(place_id, tag_id)` et `UNIQUE(note_id, tag_id)`
-
 ### Lancer l’API
 
 ```bash
@@ -103,7 +84,7 @@ Le serveur lit `SUPABASE_URL` et la clé depuis `.env`.
 
 ## API
 
-Toutes les routes nécessitent un JWT valide (Auth0), sauf `GET /health`. Les paramètres passent par route params et/ou query; les headers ne sont plus utilisés pour passer des identifiants fonctionnels.
+Toutes les routes nécessitent un JWT valide Supabase, sauf `GET /health` et `POST /register`. Les paramètres passent par route params et/ou query; les headers ne sont plus utilisés pour passer des identifiants fonctionnels.
 
 ### Health
 
@@ -114,7 +95,7 @@ Toutes les routes nécessitent un JWT valide (Auth0), sauf `GET /health`. Les pa
 - GET `/places`
 - GET `/place/:id`
 - POST `/place`
-  - body JSON: `{ name, slug, category_id, latitude, longitude, rating?, address?, cover?, comment?, favorite?, googleid?, yelpid?, tags?: [{ label }] }`
+  - body JSON: `{ name, slug, category_id, latitude, longitude, rating?, address?, city?, cover?, comment?, favorite?, googleid?, yelpid?, tags?: [{ label }] }`
 - PATCH `/place/:id`
   - body JSON: `{ favorite: boolean }`
 - DELETE `/place/:id`
@@ -122,13 +103,17 @@ Toutes les routes nécessitent un JWT valide (Auth0), sauf `GET /health`. Les pa
 - GET `/searchcoords?lat=..&lng=..`
 - GET `/placefromapi` (lecture par ID externe, params/usage selon contrôleur)
 
-### Catégories / Tags
+### Catégories (per-user, lazy init)
 
 - GET `/categories`
+- POST `/category`
+  - body JSON: `{ label, label_fr, label_en, icon? }`
+- PATCH `/categories/order`
+  - body JSON: `{ order: [{ id, order_index }] }`
+- DELETE `/category/:id`
 - GET `/categories/:categorylabel`
 - GET `/categories/:categorylabel/places`
 - GET `/categories/:categorylabel/latestplaces`
-- GET `/categories/:categorylabel/tags`
 
 ### Autocomplete / Détails
 
@@ -197,20 +182,20 @@ curl http://localhost:3000/health
 
 ## RLS (Row Level Security)
 
-Les tables activent RLS. Si vous restez sur Auth0, alignez les policies sur le `sub` du JWT:
+Les tables activent RLS avec Supabase Auth:
 
 ```sql
--- Exemple: accès propriétaire supportant Auth0 (sub) OU Supabase Auth (auth.uid())
-USING (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text))
-WITH CHECK (user_id = coalesce(auth.jwt()->>'sub', auth.uid()::text))
+-- Exemple: accès propriétaire Supabase Auth
+USING (user_id = auth.uid()::text)
+WITH CHECK (user_id = auth.uid()::text)
 ```
 
-Si vous migrez vers Supabase Auth: passez `user_id` en UUID et utilisez `auth.uid()`.
+Pour une migration complète Supabase Auth: passez `user_id` en UUID et utilisez `auth.uid()`.
 
-- Tables principales: `place`, `note`, `tag`, tables de liaison (`place_has_tag`).
-- Politiques: propriétaire = utilisateur (lecture/écriture limitées au propriétaire).
-
-Vous pouvez exécuter vos policies via Studio ou des scripts SQL dédiés.
+- Tables principales: `place`, `note`, `category`, `user_preferences`, tables de liaison (`place_has_tag`, `note_has_tag`).
+- `category`: politiques per-user (SELECT/INSERT/UPDATE/DELETE via `user_id = auth.uid()::text`).
+- `place_tag`, `note_tag`: lecture libre.
+- Toutes les politiques sont définies dans `db/create_db.sql`.
 
 ---
 
@@ -235,8 +220,7 @@ Ce chapitre formalise les conventions nécessaires pour refactorer le front en c
 ### Base URL, Auth et CORS
 
 - Base URL: `http://localhost:<SERVER_PORT>` (défini par `SERVER_PORT` dans `.env`).
-- Auth: `Authorization: Bearer <JWT>` (JWT Auth0 requis pour toutes les routes).
-- Audience/Issuer: voir `AUTH_AUDIENCE` et `AUTH_ISSUER_BASE_URL` dans `.env`.
+- Auth: `Authorization: Bearer <JWT>` (JWT Supabase requis pour toutes les routes privées).
 - CORS: restreignez en prod via `ALLOWED_ORIGINS="https://app.example.com,https://studio.supabase.co"`.
 
 ### Conventions de requêtes
@@ -250,20 +234,22 @@ Ce chapitre formalise les conventions nécessaires pour refactorer le front en c
   - Format: `{ items|places|notes: [...], meta: { page, limit, total, totalPages } }`.
 - Ressources usuelles:
   - `GET /places`: `{ places: Array<PlaceWithCount>, meta }`.
-  - `GET /categories`: `{ categories: Array<Category> }`.
+  - `GET /categories`: `{ categories: Array<Category> }` (lazy init: crée les catégories par défaut si vide).
+  - `POST /category`: `{ category: Category }` (201 créé).
+  - `PATCH /categories/order`: `{ categories: Array<Category> }`.
+  - `DELETE /category/:id`: `{ message: "Category deleted" }` (200), ou 404.
   - `GET /categories/:label/places`: `{ places: Array<PlaceWithCount>, meta }`.
   - `GET /latestplaces`: `{ places: Array<Place> }`.
   - `GET /place/:id`: `Place` enrichi potentiellement avec `{ google, yelp, google_cover }`.
   - `GET /places/:id/notes`: `{ notes: Array<Note>, meta }`.
   - `GET /notes/:id`: `{ note: Note }`.
   - `PATCH /notes/:id`: `{ note: Note }` (favori mis à jour).
-  - `POST /notes/:id/tags`: `{ tags: Array<Tag> }`.
-  - `GET /notes/:id/tags`: `{ tags: Array<Tag> }`.
+  - `POST /notes/:id/tags`: `{ tags: Array<NoteTag> }`.
+  - `GET /notes/:id/tags`: `{ tags: Array<NoteTag> }`.
   - `DELETE /notes/:id/tags`: `{ removed: number }`.
-  - `POST /place`: `{ place: Place, tags?: Array<Tag> }` (201 créé).
+  - `POST /place`: `{ place: Place, tags?: Array<PlaceTag> }` (201 créé).
   - `PATCH /place/:id`: `{ place: Place }` (favori mis à jour).
   - `DELETE /place/:id`: `{ message: "Place deleted" }` (200), ou 404 si introuvable.
-  - `GET /categories/:categorylabel/tags`: `{ tags: Array<Tag> }`.
 
 ### Paramètres optionnels
 
@@ -276,19 +262,25 @@ Ce chapitre formalise les conventions nécessaires pour refactorer le front en c
 Ces structures reflètent les champs manipulés par les contrôleurs/services. Les types peuvent être affinés selon la base.
 
 ```ts
-type UUIDString = string; // Auth0 sub (string), ou UUID via Supabase Auth
+type UUIDString = string; // UUID Supabase Auth (ou string legacy)
 
 type Category = {
   id: number;
   label: string;
   label_en?: string;
   label_fr?: string;
+  icon?: string;
+  order_index: number;
 };
 
-type Tag = {
+type PlaceTag = {
   id: number;
   label: string;
-  category_id?: number;
+};
+
+type NoteTag = {
+  id: number;
+  label: string;
 };
 
 type Place = {
@@ -300,6 +292,7 @@ type Place = {
   longitude: number;
   rating?: number; // peut être 0
   address?: string;
+  city?: string;
   cover?: string;
   comment?: string;
   favorite?: boolean;
@@ -307,6 +300,7 @@ type Place = {
   yelpid?: string | null;
   created_at?: string;
   updated_at?: string | null;
+  tags?: Array<PlaceTag>;
 };
 
 type PlaceWithCount = Place & { notes_count: number };
@@ -342,7 +336,12 @@ type PlaceDetailsGoogle = {
 - `PATCH /place/:id`:
   - `{ favorite: boolean }`
 - `PATCH /notes/:id`:
-  - `{ favorite: boolean }`
+  - `{ favorite?: boolean, rating?: number }`
+    - Détails `rating`: décimal accepté (ex: 3.5), virgule tolérée en entrée (ex: "3,5"), bornes 0..5
+- `POST /category`:
+  - `{ label, label_fr, label_en, icon? }`
+- `PATCH /categories/order`:
+  - `{ order: [{ id, order_index }] }`
 - `POST /notes/:id/tags` | `DELETE /notes/:id/tags`:
   - `{ tags: [{ label }] }`
 

@@ -7,6 +7,7 @@ export const GetPlaceByIdQuerySchema = z.object({
 export const CreatePlaceBodySchema = z.object({
   name: z.string().min(1),
   address: z.string().optional(),
+  city: z.string().optional(),
   comment: z.string().optional(),
   cover: z.string().optional(),
   category_id: z.number().int(),
@@ -48,6 +49,17 @@ export const CategoryLabelQuerySchema = z.object({
   categorylabel: z.string().min(1),
 });
 
+export const CategoryOrderBodySchema = z.object({
+  order: z
+    .array(
+      z.object({
+        id: z.number().int(),
+        order_index: z.number().int().min(0),
+      }),
+    )
+    .min(1),
+});
+
 export const PaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
@@ -57,4 +69,15 @@ export const PaginationQuerySchema = z.object({
 
 export const LatestPlacesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(9).optional(),
+});
+
+export const CreateCategoryBodySchema = z.object({
+  label: z.string().min(1),
+  label_fr: z.string().min(1),
+  label_en: z.string().min(1),
+  icon: z.string().optional(),
+});
+
+export const CategoryIdParamSchema = z.object({
+  id: z.string().min(1),
 });

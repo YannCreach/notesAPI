@@ -1,6 +1,6 @@
-import { supabase } from "../../app/database.js";
+import { supabase } from "../database.js";
 
-export async function checkJwt(req, res, next) {
+export async function checkSupabaseJwt(req, res, next) {
   try {
     const authHeader = req.headers.authorization || "";
     const [scheme, token] = authHeader.split(" ");
@@ -20,7 +20,10 @@ export async function checkJwt(req, res, next) {
 
     req.auth = {
       token,
-      payload: { sub: data.user.id, email: data.user.email },
+      payload: {
+        sub: data.user.id,
+        email: data.user.email,
+      },
       user: data.user,
     };
     return next();
@@ -28,3 +31,4 @@ export async function checkJwt(req, res, next) {
     return next(error);
   }
 }
+

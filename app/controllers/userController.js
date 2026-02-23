@@ -1,42 +1,107 @@
-import axios from "axios";
 import dotenv from "dotenv";
+import UserPreferencesService from "../services/userPreferences.service.js";
+import { supabaseAdmin } from "../database.js";
 dotenv.config();
 
-const audience_management = process.env.AUTH0_AUDIENCE_MANAGEMENT;
-const domain = process.env.AUTH0_DOMAIN;
-const m2mclientId = process.env.AUTH0_M2M_CLIENT_ID;
-const m2mClientSecret = process.env.M2M_CLIENT_SECRET;
-
 class userController {
-  static async updateColorscheme(req, res, next) {
-    const body = req.validated || req.body || {};
-    const optionsToken = {
-      method: "POST",
-      url: `https://${domain}/oauth/token`,
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      data: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: m2mclientId,
-        client_secret: m2mClientSecret,
-        audience: audience_management,
-      }),
-    };
-
+  static async register(req, res, next) {
     try {
-      const responseToken = await axios.request(optionsToken);
-      const optionsPatch = {
-        method: "PATCH",
-        url: `${audience_management}users/${req.auth.payload.sub}`,
-        headers: {
-          Authorization: `Bearer ${responseToken.data.access_token}`,
-          "content-type": "application/json",
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return res.status(500).json({
+          error: {
+            code: "internal_error",
+            message:
+              "SUPABASE_SERVICE_ROLE_KEY is required to create users from backend",
+          },
+        });
+      }
+      const { email, password } = req.validated || req.body || {};
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: false,
+      });
+
+      if (error) {
+        if (
+          error.status === 422 ||
+          error.message?.toLowerCase().includes("already")
+        ) {
+          return res
+            .status(409)
+            .json({ error: { code: "conflict", message: error.message } });
+        }
+        throw new Error(error.message);
+      }
+
+      return res.status(201).json({
+        user: {
+          id: data?.user?.id,
+          email: data?.user?.email,
         },
-        data: {
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getPreferences(req, res, next) {
+    try {
+      const prefs = await UserPreferencesService.getOrCreate(
+        req.auth.payload.sub,
+      );
+      res.status(200).json({
+        preferences: {
+          theme: prefs.theme,
+          currency: prefs.currency,
+          displayBulletPoints: prefs.display_bullet_points,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updatePreferences(req, res, next) {
+    try {
+      const body = req.validated || req.body || {};
+      const prefs = await UserPreferencesService.update(
+        req.auth.payload.sub,
+        body,
+      );
+      res.status(200).json({
+        preferences: {
+          theme: prefs.theme,
+          currency: prefs.currency,
+          displayBulletPoints: prefs.display_bullet_points,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateColorscheme(req, res, next) {
+    try {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return res.status(500).json({
+          error: {
+            code: "internal_error",
+            message:
+              "SUPABASE_SERVICE_ROLE_KEY is required to update user metadata from backend",
+          },
+        });
+      }
+
+      const body = req.validated || req.body || {};
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        req.auth.payload.sub,
+        {
           user_metadata: { colorscheme: body.colorscheme },
         },
-      };
-      await axios.request(optionsPatch);
-      res.status(200).json({ colorscheme: body.colorscheme });
+      );
+      if (error) throw new Error(error.message);
+      return res.status(200).json({ colorscheme: body.colorscheme });
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.error(error);

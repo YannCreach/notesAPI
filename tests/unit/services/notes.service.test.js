@@ -7,6 +7,19 @@ beforeEach(() => {
 });
 
 describe("NotesService", () => {
+  it("delegates create to Note model", async () => {
+    const payload = { name: "memo", cover: "https://img.test/a.jpg" };
+    const created = { id: 1, ...payload };
+    vi.spyOn(Note, "create").mockResolvedValue(created);
+    const res = await NotesService.create("u1", 42, payload);
+    expect(res).toEqual(created);
+    expect(Note.create).toHaveBeenCalledWith({
+      userId: "u1",
+      placeId: 42,
+      payload,
+    });
+  });
+
   it("delegates getAllByPlacePaginated to Note model", async () => {
     vi.spyOn(Note, "findAllByPlacePaginated").mockResolvedValue({
       items: [],

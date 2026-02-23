@@ -6,7 +6,7 @@ class Place {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,comment,slug,googleid,yelpid,category_id,created_at,updated_at, place_note:note(*)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,comment,slug,googleid,yelpid,category_id,created_at,updated_at, place_note:note(id,name,price,cover,rating,favorite,comment,created_at,updated_at)",
       )
       .eq("user_id", userId)
       .or(`address.ilike.${pattern},name.ilike.${pattern}`);
@@ -17,7 +17,7 @@ class Place {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
       )
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
@@ -33,7 +33,7 @@ class Place {
     const { data, error, count } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
         { count: "exact" },
       )
       .eq("user_id", userId)
@@ -47,7 +47,7 @@ class Place {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category(id,label,label_fr,label_en)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -60,7 +60,7 @@ class Place {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
       )
       .eq("user_id", userId)
       .eq("category.label", categoryLabel);
@@ -78,7 +78,7 @@ class Place {
     const { data, error, count } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
         { count: "exact" },
       )
       .eq("user_id", userId)
@@ -93,7 +93,7 @@ class Place {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,slug,googleid,yelpid,category_id,created_at,updated_at, place_category:category!inner(id,label,label_fr,label_en)",
       )
       .eq("user_id", userId)
       .eq("category.label", categoryLabel)
@@ -112,6 +112,7 @@ class Place {
           "id",
           "name",
           "address",
+          "city",
           "latitude",
           "longitude",
           "cover",
@@ -127,9 +128,9 @@ class Place {
           // Category
           "place_category:category(*)",
           // Notes (projection minimale)
-          "place_note:note(id,name,option,price,cover,favorite,comment,created_at,updated_at)",
+          "place_note:note(id,name,price,cover,rating,favorite,comment,created_at,updated_at)",
           // Tags via table de jointure (sera aplati après)
-          "_tags:place_has_tag(tag(id,label))",
+          "_tags:place_has_tag(place_tag(id,label))",
         ].join(","),
       )
       .eq("id", placeId)
@@ -138,7 +139,7 @@ class Place {
     if (e1) throw new Error(e1.message);
 
     const tags = Array.isArray(place?._tags)
-      ? place._tags.map((t) => t.tag).filter(Boolean)
+      ? place._tags.map((t) => t.place_tag).filter(Boolean)
       : [];
 
     const { _tags, ...rest } = place || {};
@@ -152,7 +153,7 @@ class Place {
       .eq("id", placeId)
       .eq("user_id", userId)
       .select(
-        "id,name,address,latitude,longitude,cover,rating,favorite,comment,slug,googleid,yelpid,category_id,created_at,updated_at",
+        "id,name,address,city,latitude,longitude,cover,rating,favorite,comment,slug,googleid,yelpid,category_id,created_at,updated_at",
       )
       .single();
     if (error) throw new Error(error.message);
@@ -163,6 +164,7 @@ class Place {
     const {
       name,
       address,
+      city,
       comment,
       cover,
       category_id,
@@ -182,6 +184,7 @@ class Place {
         {
           name,
           address,
+          city,
           comment,
           cover,
           category_id,
@@ -204,7 +207,7 @@ class Place {
     let linkedTags = [];
     if (cleanTags.length) {
       const { data: upsertedTags, error: eTagBatch } = await supabaseAdmin
-        .from("tag")
+        .from("place_tag")
         .upsert(
           cleanTags.map((t) => ({ label: t.label })),
           { onConflict: "label" },

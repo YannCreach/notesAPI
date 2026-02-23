@@ -5,7 +5,8 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
 ## Base
 
 - Base URL: `http://localhost:<SERVER_PORT>` where `SERVER_PORT` is defined in `.env`.
-- Auth: All routes require `Authorization: Bearer <JWT>` (Auth0), **except** `GET /health`.
+- Auth: All private routes require `Authorization: Bearer <JWT Supabase>`.
+- Public routes: `GET /health`, `POST /register`.
 - CORS: configure via `ALLOWED_ORIGINS` in `.env`.
 - IDs must be passed via **route params** or **query**, not headers.
 
@@ -14,6 +15,31 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
 - `GET /health`
   - Auth: none
   - Response `200`: `{ status: "ok" }`
+
+## Auth
+
+- `POST /register`
+  - Auth: none
+  - Body:
+    - `{ email: string, password: string }`
+  - Response `201`/`200`:
+    - `{ user: object, token?: string }` (selon implémentation backend)
+
+## User Preferences
+
+- `GET /user/preferences`
+  - Auth: required
+  - Response `200`:
+    - `{ preferences: UserPreferences }`
+
+- `PATCH /user/preferences`
+  - Auth: required
+  - Body (at least one of):
+    - `{ theme?: "light" | "dark", currency?: string, displayBulletPoints?: boolean }`
+  - Compat payload input:
+    - `display_bullet_points?: boolean` accepté temporairement
+  - Response `200`:
+    - `{ preferences: UserPreferences }`
 
 ## Places
 
@@ -37,9 +63,9 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
 
 - `POST /place`
   - Body:
-    - `{ name, slug, category_id, latitude, longitude, rating?, address?, cover?, comment?, favorite?, googleid?, yelpid?, tags?: [{ label }] }`
+    - `{ name, slug, category_id, latitude, longitude, rating?, address?, city?, cover?, comment?, favorite?, googleid?, yelpid?, tags?: [{ label }] }`
   - Response `201`:
-    - `{ place: Place, tags?: Array<Tag> }`
+    - `{ place: Place, tags?: Array<PlaceTag> }`
 
 - `PATCH /place/:id`
   - Body:
@@ -77,11 +103,31 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
     - `place_id` string
   - Response `200`: Google Place Details (formatted subset)
 
-## Categories & Tags
+## Categories
+
+Les catégories sont **per-user**. Chaque utilisateur possède ses propres catégories. Au premier `GET /categories`, les catégories par défaut sont créées automatiquement (lazy init).
 
 - `GET /categories`
   - Response `200`:
-    - `{ categories: Array<Category> }`
+    - `{ categories: Array<Category> }` (triées par `order_index`, puis `label`)
+
+- `POST /category`
+  - Body:
+    - `{ label: string, label_fr: string, label_en: string, icon?: string }`
+  - Response `201`:
+    - `{ category: Category }`
+
+- `PATCH /categories/order`
+  - Body:
+    - `{ order: [{ id, order_index }] }`
+  - Response `200`:
+    - `{ categories: Array<Category> }` (triées par `order_index`, puis `label`)
+
+- `DELETE /category/:id`
+  - Params:
+    - `id` string
+  - Response `200`: `{ message: "Category deleted" }`
+  - Response `404`: `{ message: "Category not found" }`
 
 - `GET /categories/:categorylabel`
   - Params:
@@ -96,12 +142,6 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
     - `page`, `limit`, `sort`, `order` (same as `/places`)
   - Response `200`:
     - `{ places: Array<PlaceWithCount>, meta: { page, limit, total, totalPages } }`
-
-- `GET /categories/:categorylabel/tags`
-  - Params:
-    - `categorylabel` string
-  - Response `200`:
-    - `{ tags: Array<Tag> }`
 
 ## Autocomplete & Details
 
@@ -150,9 +190,17 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
   - Response `404`:
     - `{ message: "Note not found" }`
 
+- `POST /places/:id/notes`
+  - Params:
+    - `id` string (place_id)
+  - Body:
+    - `{ name: string, price?: string | null, comment?: string | null, rating?: number | null, favorite?: boolean, cover?: string | null }`
+  - Response `201`/`200`:
+    - `{ note: Note }`
+
 - `PATCH /notes/:id`
   - Body:
-    - `{ favorite: boolean }`
+    - `{ favorite?: boolean, rating?: number, name?: string, price?: string, comment?: string, cover?: string | null }`
   - Response `200`:
     - `{ note: Note }`
   - Response `404`:
@@ -160,13 +208,13 @@ This document is intended for frontend agents/engineers consuming the NotesAPI. 
 
 - `GET /notes/:id/tags`
   - Response `200`:
-    - `{ tags: Array<Tag> }`
+    - `{ tags: Array<NoteTag> }`
 
 - `POST /notes/:id/tags`
   - Body:
     - `{ tags: [{ label }] }`
   - Response `200`:
-    - `{ tags: Array<Tag> }`
+    - `{ tags: Array<NoteTag> }`
 
 - `DELETE /notes/:id/tags`
   - Body:
@@ -194,12 +242,18 @@ type Category = {
   label: string;
   label_en?: string;
   label_fr?: string;
+  icon?: string;
+  order_index: number;
 };
 
-type Tag = {
+type PlaceTag = {
   id: number;
   label: string;
-  category_id?: number;
+};
+
+type NoteTag = {
+  id: number;
+  label: string;
 };
 
 type Place = {
@@ -211,6 +265,7 @@ type Place = {
   longitude: number;
   rating?: number;
   address?: string;
+  city?: string;
   cover?: string;
   comment?: string;
   favorite?: boolean;
@@ -221,6 +276,7 @@ type Place = {
   google?: any;
   yelp?: any;
   google_cover?: string;
+  tags?: Array<PlaceTag>;
 };
 
 type PlaceWithCount = Place & { notes_count: number };
@@ -228,9 +284,20 @@ type PlaceWithCount = Place & { notes_count: number };
 type Note = {
   id: number;
   place_id: number;
+  name?: string;
+  price?: string;
+  comment?: string;
+  cover?: string;
   content?: string;
+  rating?: number;
   favorite?: boolean;
   created_at?: string;
   updated_at?: string | null;
+};
+
+type UserPreferences = {
+  theme: "light" | "dark";
+  currency: string; // ISO 4217, e.g. "EUR"
+  displayBulletPoints: boolean;
 };
 ```

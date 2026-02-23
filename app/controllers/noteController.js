@@ -1,4 +1,3 @@
-import { Note } from "../models/index.js";
 import NotesService from "../services/notes.service.js";
 
 class noteController {
@@ -47,25 +46,64 @@ class noteController {
     }
   }
 
-  // static async createNote(req, res) {
-  //   try {
-  //     const { name, email } = req.body;
-  //     const user = await Note.create({ name, email });
-  //     res.status(201).json({ user });
-  //   } catch (error) {
-  //     console.trace(error);
-  //     res.status(500).json({ message: error.message });
-  //   }
-  // }
+  static async createNote(req, res, next) {
+    try {
+      const placeId = req.params.id;
+      const source = req.validated || req.body || {};
+      const { name, price, cover, rating, favorite, comment } = source;
+      const notePayload = {
+        name,
+        price,
+        cover,
+        rating,
+        comment,
+        favorite:
+          favorite !== undefined
+            ? favorite === true || favorite === "true"
+            : undefined,
+      };
+      const note = await NotesService.create(
+        req.auth.payload.sub,
+        placeId,
+        notePayload,
+      );
+      res.status(201).json({ note });
+    } catch (error) {
+      return next(error);
+    }
+  }
 
   static async updateNote(req, res, next) {
     try {
       const id = req.params?.id;
-      const { favorite } = req.validated || req.body || {};
-      const updatedNote = await NotesService.updateFavorite(
+      const { favorite, rating, cover } = req.validated || req.body || {};
+      const updates = {};
+      if (favorite !== undefined) {
+        updates.favorite = favorite === "true" || favorite === true;
+      }
+      if (rating !== undefined) {
+        if (typeof rating === "string") {
+          const normalized = rating.trim().replace(",", ".");
+          updates.rating = Number(normalized);
+        } else {
+          updates.rating = Number(rating);
+        }
+      }
+      if (cover !== undefined) {
+        updates.cover = cover;
+      }
+      // Legacy payload may only contain `option`: ignore silently and return current note.
+      if (Object.keys(updates).length === 0) {
+        const existingNote = await NotesService.getById(id);
+        if (!existingNote || existingNote.user_id !== req.auth.payload.sub) {
+          return res.status(404).json({ message: "Note not found" });
+        }
+        return res.status(200).json({ note: existingNote });
+      }
+      const updatedNote = await NotesService.updateFields(
         req.auth.payload.sub,
         id,
-        favorite === "true" || favorite === true,
+        updates,
       );
       if (updatedNote) {
         res.status(200).json({ note: updatedNote });

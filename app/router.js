@@ -14,6 +14,9 @@ import {
   PlaceDetailsQuerySchema,
   PlaceCoordsQuerySchema,
   CategoryLabelQuerySchema,
+  CategoryOrderBodySchema,
+  CreateCategoryBodySchema,
+  CategoryIdParamSchema,
   PaginationQuerySchema,
   LatestPlacesQuerySchema,
 } from "./validators/places.schemas.js";
@@ -22,12 +25,16 @@ import {
   NotesGetQuerySchema,
   NoteGetQuerySchema,
   UpdateNoteFavoriteBodySchema,
+  CreateNoteBodySchema,
 } from "./validators/notes.schemas.js";
 import {
   AddNoteTagsBodySchema,
   RemoveNoteTagsBodySchema,
 } from "./validators/notes.schemas.js";
-import { UpdateColorschemeBodySchema } from "./validators/user.schemas.js";
+import {
+  UpdateColorschemeBodySchema,
+  UpdatePreferencesBodySchema,
+} from "./validators/user.schemas.js";
 // const uploadController = require('./controllers/uploadController');
 // const { checkJwt } = require("../src/authz/check-jwt");
 
@@ -35,6 +42,12 @@ const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Users
+router.get("/user/preferences", userController.getPreferences);
+router.patch(
+  "/user/preferences",
+  validate(UpdatePreferencesBodySchema, "body"),
+  userController.updatePreferences,
+);
 router.patch(
   "/user",
   validate(UpdateColorschemeBodySchema, "body"),
@@ -129,12 +142,20 @@ router.delete(
 
 // Categories
 router.get("/categories", placeController.getAllCategories);
-
-// Tags
-router.get(
-  "/categories/:categorylabel/tags",
-  validate(CategoryLabelQuerySchema, "params"),
-  placeController.getAllTags,
+router.post(
+  "/category",
+  validate(CreateCategoryBodySchema, "body"),
+  placeController.createCategory,
+);
+router.patch(
+  "/categories/order",
+  validate(CategoryOrderBodySchema, "body"),
+  placeController.updateCategoryOrder,
+);
+router.delete(
+  "/category/:id",
+  validate(CategoryIdParamSchema, "params"),
+  placeController.deleteCategory,
 );
 
 // Notes
@@ -143,6 +164,12 @@ router.get(
   validate(GetPlaceByIdQuerySchema, "params"),
   validate(PaginationQuerySchema, "query"),
   noteController.getAllNotes,
+);
+router.post(
+  "/places/:id/notes",
+  validate(GetPlaceByIdQuerySchema, "params"),
+  validate(CreateNoteBodySchema, "body"),
+  noteController.createNote,
 );
 router.get(
   "/notes/:id",

@@ -2,7 +2,6 @@ import { Category } from "../models/index.js";
 import PlacesService from "../services/places.service.js";
 import NotesService from "../services/notes.service.js";
 import CategoryService from "../services/category.service.js";
-import TagService from "../services/tag.service.js";
 import axios from "axios";
 const yelpApiKey = process.env.YELP_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
@@ -55,7 +54,8 @@ class placeController {
 
   static async getAllCategories(req, res, next) {
     try {
-      const categories = await CategoryService.getAll();
+      const userId = req.auth.payload.sub;
+      const categories = await CategoryService.getAll(userId);
 
       const formattedData = categories.map((category) => {
         return {
@@ -63,6 +63,8 @@ class placeController {
           label: category.label,
           label_en: category.label_en,
           label_fr: category.label_fr,
+          icon: category.icon,
+          order_index: category.order_index,
         };
       });
 
@@ -72,14 +74,12 @@ class placeController {
     }
   }
 
-  static async getAllTags(req, res, next) {
-    const categorylabel = req.params.categorylabel;
+  static async updateCategoryOrder(req, res, next) {
     try {
-      const tags = await TagService.findByCategoryForUser(
-        categorylabel,
-        req.auth.payload.sub,
-      );
-      res.status(200).json({ tags });
+      const userId = req.auth.payload.sub;
+      const { order = [] } = req.validated || {};
+      const categories = await CategoryService.updateOrder(userId, order);
+      res.status(200).json({ categories });
     } catch (error) {
       return next(error);
     }
@@ -88,8 +88,35 @@ class placeController {
   static async getOneCategory(req, res, next) {
     const categorylabel = req.params.categorylabel;
     try {
-      const category = await CategoryService.getOneByLabel(categorylabel);
+      const userId = req.auth.payload.sub;
+      const category = await CategoryService.getOneByLabel(userId, categorylabel);
       res.status(200).json({ category });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createCategory(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const { label, label_fr, label_en, icon } = req.validated || req.body || {};
+      const category = await CategoryService.create(userId, { label, label_fr, label_en, icon });
+      res.status(201).json({ category });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteCategory(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const id = req.params.id;
+      const deleted = await CategoryService.delete(userId, id);
+      if (deleted) {
+        res.status(200).json({ message: "Category deleted" });
+      } else {
+        res.status(404).json({ message: "Category not found" });
+      }
     } catch (error) {
       return next(error);
     }
@@ -117,11 +144,12 @@ class placeController {
       );
 
       // data received from db {}[]
-      // {"address": "Rue des Acacias, Pont de Viarmes - Nod Hue, 22300 Lannion, France", "category_id": 2, "comment": "commentaire constructif !", "cover": "", "created_at": "2023-03-21T22:10:57.462Z", "favorite": true, "googleid": "ChIJm2gcO-srEkgRr54zI_oRT1A", "id": 2, "latitude": 48.7308695, "longitude": -3.4658228, "name": "Aziza", "place_category": {"created_at": "2023-03-21T20:44:25.116Z", "id": 2, "label": "Restaurant", "label_en": "a Restaurant", "label_fr": "un Restaurant", "updated_at": null}, "rating": 4, "slug": "aziza", "updated_at": "2023-03-21T22:10:57.462Z", "user_id": "auth0|64c2d126f68758196e9d0006", "yelpid": null}
+      // {"address": "Rue des Acacias, Pont de Viarmes - Nod Hue, 22300 Lannion, France", "category_id": 2, "comment": "commentaire constructif !", "cover": "", "created_at": "2023-03-21T22:10:57.462Z", "favorite": true, "googleid": "ChIJm2gcO-srEkgRr54zI_oRT1A", "id": 2, "latitude": 48.7308695, "longitude": -3.4658228, "name": "Aziza", "place_category": {"created_at": "2023-03-21T20:44:25.116Z", "id": 2, "label": "Restaurant", "label_en": "a Restaurant", "label_fr": "un Restaurant", "updated_at": null}, "rating": 4, "slug": "aziza", "updated_at": "2023-03-21T22:10:57.462Z", "user_id": "11111111-1111-1111-1111-111111111111", "yelpid": null}
 
       const formattedData = (items || []).map((place) => {
         return {
           address: place.address,
+          city: place.city,
           category_id: place.category_id,
           comment: place.comment,
           cover: place.cover,
@@ -639,6 +667,7 @@ class placeController {
       const formattedCategoryName =
         categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
       const categoryInstance = await Category.findOneByLabel(
+        req.auth.payload.sub,
         formattedCategoryName,
       );
 
