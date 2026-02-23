@@ -2,6 +2,8 @@
 
 Ce document décrit la structure de la base de données, les tables, champs principaux, contraintes et relations.
 
+Le frontend mobile interagit directement avec Supabase pour toutes les opérations CRUD. Les RLS policies protègent les données par utilisateur.
+
 ## Vue d’ensemble
 
 - `category` 1—N `place`
@@ -34,7 +36,7 @@ Contraintes:
 Relations:
 
 - 1 catégorie possède plusieurs `place` (`place.category_id`)
-- Chaque utilisateur possède ses propres catégories (lazy init au premier `GET /categories`)
+- Chaque utilisateur possède ses propres catégories (gérées directement via Supabase)
 
 ### `place`
 
@@ -169,8 +171,8 @@ Relations:
 - RLS activée sur `place`, `note`, `place_has_tag`, `note_has_tag`, `place_tag`, `note_tag`, `category`, `user_preferences`.
 - Politiques owner-based utilisent `auth.uid()::text`.
 - `category` : SELECT/INSERT/UPDATE/DELETE per-user (`user_id = auth.uid()::text`).
-- `place_tag`, `note_tag` en lecture libre (select).
-- Les tables de jointure autorisent l’écriture uniquement au propriétaire de l’entité parente.
+- `place_tag`, `note_tag` : lecture libre (SELECT) + insertion libre (INSERT) — le frontend crée les tags directement.
+- Les tables de jointure (`place_has_tag`, `note_has_tag`) autorisent l’écriture uniquement au propriétaire de l’entité parente.
 
 ## Indexes (perf)
 

@@ -174,9 +174,11 @@ CREATE POLICY category_update_own ON "category"
 CREATE POLICY category_delete_own ON "category"
   FOR DELETE USING (user_id = auth.uid()::text);
 
--- Tags : lecture ouverte
+-- Tags : lecture ouverte + insertion libre (le frontend crée des tags directement)
 CREATE POLICY allow_all_select_place_tag ON "place_tag" FOR SELECT USING (true);
+CREATE POLICY place_tag_insert_all ON "place_tag" FOR INSERT WITH CHECK (true);
 CREATE POLICY allow_all_select_note_tag ON "note_tag" FOR SELECT USING (true);
+CREATE POLICY note_tag_insert_all ON "note_tag" FOR INSERT WITH CHECK (true);
 
 -- Place : owner-based
 CREATE POLICY place_owner_select ON "place"

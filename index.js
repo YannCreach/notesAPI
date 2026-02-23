@@ -1,10 +1,7 @@
 import express from "express";
 import router from "./app/router.js";
 import { notFound, errorHandler } from "./app/middleware/errorHandler.js";
-import { validate } from "./app/middleware/validate.js";
 import { checkSupabaseJwt } from "./app/middleware/checkSupabaseJwt.js";
-import userController from "./app/controllers/userController.js";
-import { RegisterBodySchema } from "./app/validators/user.schemas.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
@@ -40,14 +37,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Public route: register user in Supabase Auth (no JWT required)
-app.post("/register", validate(RegisterBodySchema, "body"), userController.register);
-
 app.use(checkSupabaseJwt);
-
-app.get("/authorized", function (req, res) {
-  res.send("Secured Resource");
-});
 
 app.use(router);
 
