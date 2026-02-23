@@ -19,8 +19,6 @@ Le frontend mobile interagit directement avec Supabase pour toutes les opératio
 - `id` SERIAL PRIMARY KEY
 - `user_id` TEXT NOT NULL (Supabase `auth.uid()`)
 - `label` VARCHAR(255)
-- `label_fr` VARCHAR(255)
-- `label_en` VARCHAR(255)
 - `icon` VARCHAR(50)
 - `order_index` INTEGER NOT NULL DEFAULT 0
 - `created_at` TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -30,8 +28,6 @@ Contraintes:
 
 - Unicités par utilisateur :
   - `UNIQUE (user_id, label)`
-  - `UNIQUE (user_id, label_fr)`
-  - `UNIQUE (user_id, label_en)`
 
 Relations:
 

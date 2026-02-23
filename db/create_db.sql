@@ -14,8 +14,6 @@ CREATE TABLE IF NOT EXISTS "category" (
   "id" SERIAL PRIMARY KEY,
   "user_id" TEXT NOT NULL,
   "label" VARCHAR(255),
-  "label_fr" VARCHAR(255),
-  "label_en" VARCHAR(255),
   "icon" VARCHAR(50),
   "order_index" INTEGER NOT NULL DEFAULT 0,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -106,8 +104,6 @@ CREATE TABLE IF NOT EXISTS "note_has_tag" (
 
 -- Category : unicité par utilisateur
 ALTER TABLE "category" ADD CONSTRAINT category_user_label_unique UNIQUE ("user_id", "label");
-ALTER TABLE "category" ADD CONSTRAINT category_user_label_fr_unique UNIQUE ("user_id", "label_fr");
-ALTER TABLE "category" ADD CONSTRAINT category_user_label_en_unique UNIQUE ("user_id", "label_en");
 
 -- Place : unicité par utilisateur
 ALTER TABLE "place" ADD CONSTRAINT place_user_slug_key UNIQUE ("user_id", "slug");

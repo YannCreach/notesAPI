@@ -9,16 +9,12 @@ Ce document décrit le schéma actuel de la base SQLite locale et les liaisons e
 - `id` INTEGER PK
 - `user_id` TEXT NOT NULL DEFAULT 'local'
 - `label` TEXT
-- `label_fr` TEXT
-- `label_en` TEXT
 - `icon` TEXT
 - `order_index` INTEGER NOT NULL DEFAULT 0
 - `created_at` TEXT
 - `updated_at` TEXT
 - Uniques :
   - `(user_id, label)`
-  - `(user_id, label_fr)`
-  - `(user_id, label_en)`
 
 ### `place_tag`
 
