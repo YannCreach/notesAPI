@@ -1,7 +1,9 @@
 import { Category } from "../models/index.js";
 import Place from "../models/place.js";
 import axios from "axios";
-const yelpApiKey = process.env.YELP_API_KEY;
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client, s3Bucket } from "../s3.js";
+const geoapifyApiKey = process.env.GEOAPIFY_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
 
 class placeController {
@@ -70,16 +72,73 @@ class placeController {
   static async placeFromApiByCoords(req, res, next) {
     try {
       const { lat, lng } = req.query;
-      const yelpData = await axios.get(
-        `https://api.yelp.com/v3/businesses/search?latitude=${lat}&longitude=${lng}&sort_by=best_match&limit=5`,
-        {
-          headers: {
-            Authorization: `Bearer ${yelpApiKey}`,
-            accept: "application/json",
-          },
+      const response = await axios.get("https://api.geoapify.com/v2/places", {
+        params: {
+          categories: "catering,entertainment,tourism",
+          filter: `circle:${lng},${lat},1000`,
+          bias: `proximity:${lng},${lat}`,
+          limit: 5,
+          lang: "fr",
+          apiKey: geoapifyApiKey,
         },
+      });
+      res.status(200).json(response.data);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getPlacePhoto(req, res, next) {
+    const { photo_reference, maxwidth } = req.query;
+    const url = "https://maps.googleapis.com/maps/api/place/photo";
+    const params = {
+      photo_reference,
+      maxwidth: maxwidth || 800,
+      key: googleApiKey,
+    };
+
+    try {
+      const response = await axios.get(url, {
+        params,
+        responseType: "stream",
+      });
+      res.set("Content-Type", response.headers["content-type"]);
+      res.set("Cache-Control", "public, max-age=86400");
+      response.data.pipe(res);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async uploadPlacePhoto(req, res, next) {
+    const { photo_reference, place_id, maxwidth } = req.body;
+    const googleUrl = "https://maps.googleapis.com/maps/api/place/photo";
+
+    try {
+      const response = await axios.get(googleUrl, {
+        params: {
+          photo_reference,
+          maxwidth: maxwidth || 800,
+          key: googleApiKey,
+        },
+        responseType: "arraybuffer",
+      });
+
+      const contentType = response.headers["content-type"] || "image/jpeg";
+      const ext = contentType.includes("png") ? "png" : "jpg";
+      const key = `place-photos/${place_id}.${ext}`;
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: s3Bucket,
+          Key: key,
+          Body: Buffer.from(response.data),
+          ContentType: contentType,
+        }),
       );
-      res.status(200).json(yelpData.data);
+
+      const url = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      res.status(200).json({ url });
     } catch (error) {
       return next(error);
     }
@@ -107,7 +166,7 @@ class placeController {
 
       const formattedData = {
         name: googleData.data.result.name,
-        current_opening_hours: googleData.data.result.opening_hours,
+        current_opening_hours: googleData.data.result.current_opening_hours,
         formatted_address: googleData.data.result.formatted_address,
         formatted_phone_number: googleData.data.result.formatted_phone_number,
         geometry: googleData.data.result.geometry,
@@ -115,10 +174,10 @@ class placeController {
         price_level: googleData.data.result.price_level,
         rating: googleData.data.result.rating,
         types: googleData.data.result.types,
-        category_id: categoryInstance.id,
+        category_id: categoryInstance?.id ?? null,
         user_ratings_total: googleData.data.result.user_ratings_total,
         website: googleData.data.result.website,
-        google_cover: googleData.data.result.google_cover,
+        photos: googleData.data.result.photos,
       };
 
       res.status(200).json(formattedData);

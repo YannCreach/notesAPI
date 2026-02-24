@@ -8,6 +8,7 @@ import {
   LocationExistingQuerySchema,
   PlaceDetailsQuerySchema,
   PlaceCoordsQuerySchema,
+  UploadPlacePhotoSchema,
 } from "./validators/places.schemas.js";
 
 const router = express.Router();
@@ -19,12 +20,6 @@ router.get(
   validate(LocationAutoCompleteQuerySchema, "query"),
   placeController.getLocationAutoComplete,
 );
-router.get(
-  "/yelpautocomplete",
-  validate(LocationAutoCompleteQuerySchema, "query"),
-  placeController.getLocationAutoComplete,
-);
-
 // Recherche dans les lieux existants (DB)
 router.get(
   "/existingautocomplete",
@@ -39,7 +34,7 @@ router.get(
   placeController.getPlaceDetails,
 );
 
-// Proxy Yelp par coordonnées
+// Proxy Geoapify Places par coordonnées
 router.get(
   "/searchcoords",
   validate(PlaceCoordsQuerySchema, "query"),
@@ -51,6 +46,13 @@ router.get(
   "/placefromapi",
   validate(PlaceDetailsQuerySchema, "query"),
   placeController.placeFromApiById,
+);
+
+// Upload photo Google → S3
+router.post(
+  "/uploadplacephoto",
+  validate(UploadPlacePhotoSchema, "body"),
+  placeController.uploadPlacePhoto,
 );
 
 router.get("/", (req, res) => {

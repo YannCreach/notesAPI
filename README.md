@@ -1,12 +1,12 @@
 # NotesAPI
 
-API Express servant de proxy vers les services externes (Google Places, Yelp) qui nécessitent des clés API serveur. Toutes les opérations CRUD (places, notes, catégories, user preferences) sont gérées directement par le frontend mobile via Supabase.
+API Express servant de proxy vers les services externes (Google Places, Geoapify) qui nécessitent des clés API serveur. Toutes les opérations CRUD (places, notes, catégories, user preferences) sont gérées directement par le frontend mobile via Supabase.
 
 ## Architecture
 
 ```
 Mobile App ──► Supabase (CRUD direct, RLS protège les données)
-Mobile App ──► NotesAPI  (proxy Google / Yelp, clés API côté serveur)
+Mobile App ──► NotesAPI  (proxy Google / Geoapify, clés API côté serveur)
 ```
 
 ## Supabase
@@ -31,7 +31,7 @@ SUPABASE_ANON_KEY=...
 
 # APIs externes (proxy)
 GOOGLE_API_KEY=...
-YELP_API_KEY=...
+GEOAPIFY_API_KEY=...
 
 # Serveur
 SERVER_PORT=3000
@@ -87,11 +87,6 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health`.
   - Proxy vers Google Places Autocomplete
   - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings }>`
 
-### Yelp Autocomplete
-
-- `GET /yelpautocomplete?location=...&lat=...&lng=...&types=...`
-  - Proxy vers Google Places Autocomplete (même format)
-
 ### Existing Autocomplete
 
 - `GET /existingautocomplete?location=...`
@@ -106,13 +101,25 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health`.
 ### Search by Coords
 
 - `GET /searchcoords?lat=...&lng=...`
-  - Proxy vers Yelp Business Search (raw)
+  - Proxy vers Geoapify Places (GeoJSON FeatureCollection)
+
+### Place Photo
+
+- `GET /placephoto?photo_reference=...&maxwidth=800`
+  - Proxy vers Google Place Photo (stream image)
 
 ### Place from API
 
 - `GET /placefromapi?place_id=...`
   - Google Place Details + lookup catégorie utilisateur
-  - Response `200`: `{ name, current_opening_hours, formatted_address, formatted_phone_number, geometry, place_id, price_level, rating, types, category_id, user_ratings_total, website, google_cover }`
+  - Response `200`: `{ name, current_opening_hours, formatted_address, formatted_phone_number, geometry, place_id, price_level, rating, types, category_id, user_ratings_total, website, photos }`
+
+### Upload Place Photo (Google → S3)
+
+- `POST /uploadplacephoto`
+  - Body: `{ photo_reference, place_id, maxwidth? }`
+  - Télécharge la photo Google et la stocke dans S3
+  - Response `200`: `{ url: "https://<bucket>.s3.<region>.amazonaws.com/place-photos/<place_id>.jpg" }`
 
 ### Exemples curl
 
@@ -132,7 +139,7 @@ curl -H "Authorization: Bearer <JWT>" \
 curl -H "Authorization: Bearer <JWT>" \
   "http://localhost:3000/getplacedetails?place_id=ChIJ..."
 
-# Yelp par coordonnées
+# Geoapify Places par coordonnées
 curl -H "Authorization: Bearer <JWT>" \
   "http://localhost:3000/searchcoords?lat=48.8&lng=2.3"
 

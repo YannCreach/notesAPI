@@ -7,7 +7,7 @@ class Category {
       .select("*")
       .eq("user_id", userId)
       .eq("label", label)
-      .single();
+      .maybeSingle();
     if (error) throw new Error(error.message);
     return data;
   }

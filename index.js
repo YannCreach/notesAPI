@@ -37,6 +37,12 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+// Public: photo proxy (used as <Image src=...>, no auth header possible)
+import placeController from "./app/controllers/placeController.js";
+import { validate } from "./app/middleware/validate.js";
+import { PlacePhotoQuerySchema } from "./app/validators/places.schemas.js";
+app.get("/placephoto", validate(PlacePhotoQuerySchema, "query"), placeController.getPlacePhoto);
+
 app.use(checkSupabaseJwt);
 
 app.use(router);

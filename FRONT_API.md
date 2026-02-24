@@ -7,7 +7,7 @@ Ce document décrit le contrat entre le frontend mobile et l'API NotesAPI.
 Le frontend mobile communique avec **deux backends** :
 
 1. **Supabase (direct)** — Toutes les opérations CRUD : places, notes, catégories, user preferences, tags.
-2. **NotesAPI (proxy)** — Recherche externe (Google Places, Yelp) qui nécessite des clés API serveur.
+2. **NotesAPI (proxy)** — Recherche externe (Google Places, Geoapify) qui nécessite des clés API serveur.
 
 ## Base
 
@@ -33,12 +33,6 @@ Le frontend mobile communique avec **deux backends** :
     - `types` string (optional)
   - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings }>`
 
-### Yelp Autocomplete
-
-- `GET /yelpautocomplete`
-  - Query: same as `/googleautocomplete`
-  - Response `200`: same shape (proxy to Google autocomplete)
-
 ### Existing Autocomplete (DB)
 
 - `GET /existingautocomplete`
@@ -55,13 +49,23 @@ Le frontend mobile communique avec **deux backends** :
     - `place_id` string (required)
   - Response `200`: Google Place Details result (raw)
 
-### Search by Coords (Yelp raw)
+### Search by Coords (Geoapify Places)
 
 - `GET /searchcoords`
   - Query:
     - `lat` number (required)
     - `lng` number (required)
-  - Response `200`: Yelp Business Search response (raw)
+  - Response `200`: Geoapify Places GeoJSON — `{ type: "FeatureCollection", features: Array<{ properties: { name, formatted, categories, lat, lon, place_id, ... }, geometry }> }`
+
+### Place Photo (Google proxy)
+
+- `GET /placephoto`
+  - Auth: **none** (public, usable as `<Image src=...>`)
+  - Query:
+    - `photo_reference` string (required) — from `photos[].photo_reference` in `/placefromapi` response
+    - `maxwidth` number (optional, default 800)
+  - Response `200`: image binary (streamed), `Content-Type` set by Google (e.g. `image/jpeg`)
+  - Cache: `Cache-Control: public, max-age=86400` (24h)
 
 ### Place from API (Google + category lookup)
 
@@ -81,12 +85,22 @@ Le frontend mobile communique avec **deux backends** :
   price_level: number;
   rating: number;
   types: string[];
-  category_id: number;          // resolved from user's categories
+  category_id: number | null;    // resolved from user's categories, null if no match
   user_ratings_total: number;
   website: string;
-  google_cover: string;
+  photos: Array<{ photo_reference: string; height: number; width: number; html_attributions: string[] }>;
 }
 ```
+
+### Upload Place Photo (Google → S3)
+
+- `POST /uploadplacephoto`
+  - Body (JSON):
+    - `photo_reference` string (required) — from `photos[].photo_reference`
+    - `place_id` string (required) — used as filename in S3
+    - `maxwidth` number (optional, default 800)
+  - Response `200`: `{ url: string }` — permanent public S3 URL
+  - Downloads the Google photo server-side and stores it in AWS S3
 
 ## Error Format
 
