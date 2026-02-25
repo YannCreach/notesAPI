@@ -15,24 +15,42 @@ class placeController {
       types: types,
       fields: ["structured_formatting", "place_id"],
       language: "fr",
-      location: `${lat},${lng}`,
-      radius: 5000,
       key: googleApiKey,
     };
+    if (lat && lng) {
+      params.location = `${lat},${lng}`;
+      params.radius = 5000;
+    }
 
     try {
       const response = await axios.get(url, { params });
-      const formattedPredictions = response.data.predictions.map(
-        (prediction) => {
+      console.log("Google Autocomplete API response:", response.data);
+
+      const detailsUrl =
+        "https://maps.googleapis.com/maps/api/place/details/json";
+      const formattedPredictions = await Promise.all(
+        response.data.predictions.map(async (prediction) => {
           const { main_text, secondary_text, main_text_matched_substrings } =
             prediction.structured_formatting;
+
+          const detailsResponse = await axios.get(detailsUrl, {
+            params: {
+              place_id: prediction.place_id,
+              fields: "geometry/location",
+              key: googleApiKey,
+            },
+          });
+          const location =
+            detailsResponse.data.result?.geometry?.location ?? null;
+
           return {
             main_text,
             secondary_text,
             place_id: prediction.place_id,
             main_text_matched_substrings,
+            location,
           };
-        },
+        }),
       );
       res.status(200).json(formattedPredictions);
     } catch (error) {
