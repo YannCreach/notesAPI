@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
 import placeController from "./controllers/placeController.js";
 import { validate } from "./middleware/validate.js";
 import {
@@ -10,6 +11,11 @@ import {
   PlaceCoordsQuerySchema,
   UploadPlacePhotoSchema,
 } from "./validators/places.schemas.js";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +60,32 @@ router.post(
   validate(UploadPlacePhotoSchema, "body"),
   placeController.uploadPlacePhoto,
 );
+
+// Upload cover place → S3
+router.post(
+  "/uploadplacecover",
+  upload.single("photo"),
+  placeController.uploadPlaceCover,
+);
+
+// Upload photo memento → S3
+router.post(
+  "/uploadmementophoto",
+  upload.single("photo"),
+  placeController.uploadMementoPhoto,
+);
+
+// Changement de catégorie en masse
+router.patch("/changecat", placeController.changeCategory);
+
+// Suppression d'un memento (Supabase + S3)
+router.delete("/deletememento", placeController.deleteMemento);
+
+// Suppression d'une place avec ses mementos (Supabase + S3)
+router.delete("/deleteplace", placeController.deletePlaceWithMementos);
+
+// Suppression d'une ressource S3
+router.delete("/deleteresource", placeController.deleteResource);
 
 router.get("/", (req, res) => {
   let filePath = path.join(__dirname, "../assets/index.html");

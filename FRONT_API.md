@@ -31,7 +31,8 @@ Le frontend mobile communique avec **deux backends** :
     - `lat` number (optional)
     - `lng` number (optional)
     - `types` string (optional)
-  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings }>`
+  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings, location }>`
+  - `location`: `{ lat: number, lng: number } | null` — coordonnées obtenues via Place Details
 
 ### Existing Autocomplete (DB)
 
@@ -97,10 +98,63 @@ Le frontend mobile communique avec **deux backends** :
 - `POST /uploadplacephoto`
   - Body (JSON):
     - `photo_reference` string (required) — from `photos[].photo_reference`
-    - `place_id` string (required) — used as filename in S3
     - `maxwidth` number (optional, default 800)
   - Response `200`: `{ url: string }` — permanent public S3 URL
   - Downloads the Google photo server-side and stores it in AWS S3
+  - Filename: `{uuid}_{userId}.{ext}`
+
+### Upload Place Cover (file → S3)
+
+- `POST /uploadplacecover`
+  - Body: `multipart/form-data`
+    - `photo` file (required) — image file, max 10 Mo
+  - Response `200`: `{ url: string }` — permanent public S3 URL (dossier `place-covers/`)
+  - Filename: `{uuid}_{userId}.{ext}`
+
+### Upload Memento Photo (file → S3)
+
+- `POST /uploadmementophoto`
+  - Body: `multipart/form-data`
+    - `photo` file (required) — image file, max 10 Mo
+  - Response `200`: `{ url: string }` — permanent public S3 URL (dossier `memento-photos/`)
+  - Filename: `{uuid}_{userId}.{ext}`
+
+### Change Category (batch)
+
+- `PATCH /changecat`
+  - Query:
+    - `oldCatId` number (required)
+    - `newCatId` number (required)
+  - Response `200`: `{ updated: number }` — nombre de places mises à jour
+  - Réattribue toutes les places de l'utilisateur ayant `oldCatId` vers `newCatId`
+
+### Delete Memento
+
+- `DELETE /deletememento`
+  - Query:
+    - `id` number (required) — ID du memento
+  - Response `200`: `{ deleted: true }`
+  - Response `404`: `{ error: "Memento not found" }`
+  - Supprime le memento en DB et sa cover sur S3
+
+### Delete Place (avec mementos)
+
+- `DELETE /deleteplace`
+  - Query:
+    - `id` number (required) — ID de la place
+  - Response `200`: `{ deleted: true }`
+  - Response `404`: `{ error: "Place not found" }`
+  - Supprime les covers des mementos et de la place sur S3, puis supprime les mementos et la place en DB
+
+### Delete Resource (S3)
+
+- `DELETE /deleteresource`
+  - Query:
+    - `url` string (required) — URL complète S3 de la ressource
+  - Response `200`: `{ deleted: true }`
+  - Response `400`: `{ error: "Invalid resource URL" }`
+  - Response `403`: `{ error: "Forbidden" }` — si le `userId` dans le nom de fichier ne correspond pas au JWT
+  - Supprime une ressource S3 avec vérification d'ownership via le nom de fichier (`{uuid}_{userId}.{ext}`)
 
 ## Error Format
 

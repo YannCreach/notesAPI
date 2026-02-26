@@ -1,10 +1,20 @@
 import { Category } from "../models/index.js";
 import Place from "../models/place.js";
 import axios from "axios";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { randomUUID } from "crypto";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, s3Bucket } from "../s3.js";
 const geoapifyApiKey = process.env.GEOAPIFY_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
+
+async function deleteS3FromUrl(url) {
+  const bucketPrefix = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
+  if (!url || !url.startsWith(bucketPrefix)) return;
+  const key = url.slice(bucketPrefix.length);
+  await s3Client.send(
+    new DeleteObjectCommand({ Bucket: s3Bucket, Key: key }),
+  );
+}
 
 class placeController {
   static async getLocationAutoComplete(req, res, next) {
@@ -129,7 +139,7 @@ class placeController {
   }
 
   static async uploadPlacePhoto(req, res, next) {
-    const { photo_reference, place_id, maxwidth } = req.body;
+    const { photo_reference, maxwidth } = req.body;
     const googleUrl = "https://maps.googleapis.com/maps/api/place/photo";
 
     try {
@@ -142,9 +152,10 @@ class placeController {
         responseType: "arraybuffer",
       });
 
+      const userId = req.auth.payload.sub;
       const contentType = response.headers["content-type"] || "image/jpeg";
       const ext = contentType.includes("png") ? "png" : "jpg";
-      const key = `place-photos/${place_id}.${ext}`;
+      const key = `place-photos/${randomUUID()}_${userId}.${ext}`;
 
       await s3Client.send(
         new PutObjectCommand({
@@ -157,6 +168,144 @@ class placeController {
 
       const url = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
       res.status(200).json({ url });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async uploadPlaceCover(req, res, next) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const userId = req.auth.payload.sub;
+      const ext = req.file.mimetype.includes("png") ? "png" : "jpg";
+      const key = `place-covers/${randomUUID()}_${userId}.${ext}`;
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: s3Bucket,
+          Key: key,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype,
+        }),
+      );
+
+      const url = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      res.status(200).json({ url });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async uploadMementoPhoto(req, res, next) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const userId = req.auth.payload.sub;
+      const ext = req.file.mimetype.includes("png") ? "png" : "jpg";
+      const key = `memento-photos/${randomUUID()}_${userId}.${ext}`;
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: s3Bucket,
+          Key: key,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype,
+        }),
+      );
+
+      const url = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      res.status(200).json({ url });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteResource(req, res, next) {
+    try {
+      const { url } = req.query;
+      const userId = req.auth.payload.sub;
+
+      const bucketPrefix = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
+      if (!url.startsWith(bucketPrefix)) {
+        return res.status(400).json({ error: "Invalid resource URL" });
+      }
+
+      const key = url.slice(bucketPrefix.length);
+      const filename = key.split("/").pop();
+      const nameWithoutExt = filename.replace(/\.[^.]+$/, "");
+      const ownerUserId = nameWithoutExt.split("_").slice(1).join("_");
+
+      if (ownerUserId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: s3Bucket,
+          Key: key,
+        }),
+      );
+
+      res.status(200).json({ deleted: true });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteMemento(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const { id } = req.query;
+
+      const memento = await Place.findMementoById(userId, id);
+      if (!memento) {
+        return res.status(404).json({ error: "Memento not found" });
+      }
+
+      await deleteS3FromUrl(memento.cover);
+      await Place.deleteMemento(userId, id);
+
+      res.status(200).json({ deleted: true });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deletePlaceWithMementos(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const { id } = req.query;
+
+      const place = await Place.findPlaceWithMementos(userId, id);
+      if (!place) {
+        return res.status(404).json({ error: "Place not found" });
+      }
+
+      const s3Deletions = (place.place_note || [])
+        .map((note) => deleteS3FromUrl(note.cover));
+      s3Deletions.push(deleteS3FromUrl(place.cover));
+      await Promise.all(s3Deletions);
+
+      await Place.deletePlace(userId, id);
+
+      res.status(200).json({ deleted: true });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async changeCategory(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const { oldCatId, newCatId } = req.query;
+
+      const updated = await Place.updateCategory(userId, oldCatId, newCatId);
+      res.status(200).json({ updated: updated.length });
     } catch (error) {
       return next(error);
     }

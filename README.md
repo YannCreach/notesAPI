@@ -85,7 +85,7 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health`.
 
 - `GET /googleautocomplete?location=...&lat=...&lng=...&types=...`
   - Proxy vers Google Places Autocomplete
-  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings }>`
+  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings, location }>`
 
 ### Existing Autocomplete
 
@@ -117,9 +117,45 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health`.
 ### Upload Place Photo (Google → S3)
 
 - `POST /uploadplacephoto`
-  - Body: `{ photo_reference, place_id, maxwidth? }`
+  - Body: `{ photo_reference, maxwidth? }`
   - Télécharge la photo Google et la stocke dans S3
-  - Response `200`: `{ url: "https://<bucket>.s3.<region>.amazonaws.com/place-photos/<place_id>.jpg" }`
+  - Response `200`: `{ url: "https://<bucket>.s3.<region>.amazonaws.com/place-photos/<uuid>_<userId>.jpg" }`
+
+### Upload Place Cover (file → S3)
+
+- `POST /uploadplacecover`
+  - Body: `multipart/form-data` avec champ `photo` (max 10 Mo)
+  - Response `200`: `{ url }` — URL S3 dans `place-covers/`
+
+### Upload Memento Photo (file → S3)
+
+- `POST /uploadmementophoto`
+  - Body: `multipart/form-data` avec champ `photo` (max 10 Mo)
+  - Response `200`: `{ url }` — URL S3 dans `memento-photos/`
+
+### Change Category (batch)
+
+- `PATCH /changecat?oldCatId=...&newCatId=...`
+  - Réattribue toutes les places de `oldCatId` vers `newCatId`
+  - Response `200`: `{ updated: number }`
+
+### Delete Memento
+
+- `DELETE /deletememento?id=...`
+  - Supprime le memento (DB + cover S3)
+  - Response `200`: `{ deleted: true }`
+
+### Delete Place
+
+- `DELETE /deleteplace?id=...`
+  - Supprime la place, ses mementos (DB) et toutes les covers (S3)
+  - Response `200`: `{ deleted: true }`
+
+### Delete Resource (S3)
+
+- `DELETE /deleteresource?url=...`
+  - Supprime une ressource S3 (vérification ownership via userId dans le nom de fichier)
+  - Response `200`: `{ deleted: true }`
 
 ### Exemples curl
 
