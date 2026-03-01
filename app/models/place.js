@@ -1,4 +1,4 @@
-import supabase from "../database.js";
+import { supabaseAdmin as supabase } from "../database.js";
 
 class Place {
   static async findExistingByLocation(userId, location) {

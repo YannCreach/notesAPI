@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import multer from "multer";
 import placeController from "./controllers/placeController.js";
+import socialController from "./controllers/socialController.js";
 import { validate } from "./middleware/validate.js";
 import {
   LocationAutoCompleteQuerySchema,
@@ -11,6 +12,13 @@ import {
   PlaceCoordsQuerySchema,
   UploadPlacePhotoSchema,
 } from "./validators/places.schemas.js";
+import {
+  AddFriendBodySchema,
+  RequestIdQuerySchema,
+  FriendIdQuerySchema,
+  FriendPlacesQuerySchema,
+  FriendNotesQuerySchema,
+} from "./validators/social.schemas.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -86,6 +94,40 @@ router.delete("/deleteplace", placeController.deletePlaceWithMementos);
 
 // Suppression d'une ressource S3
 router.delete("/deleteresource", placeController.deleteResource);
+
+// --- Social ---
+router.post(
+  "/addfriend",
+  validate(AddFriendBodySchema, "body"),
+  socialController.addFriend,
+);
+router.get("/friends", socialController.getFriends);
+router.get("/friendrequests", socialController.getFriendRequests);
+router.patch(
+  "/acceptfriend",
+  validate(RequestIdQuerySchema, "query"),
+  socialController.acceptFriend,
+);
+router.delete(
+  "/declinefriend",
+  validate(RequestIdQuerySchema, "query"),
+  socialController.declineFriend,
+);
+router.delete(
+  "/removefriend",
+  validate(FriendIdQuerySchema, "query"),
+  socialController.removeFriend,
+);
+router.get(
+  "/friendplaces",
+  validate(FriendPlacesQuerySchema, "query"),
+  socialController.getFriendPlaces,
+);
+router.get(
+  "/friendnotes",
+  validate(FriendNotesQuerySchema, "query"),
+  socialController.getFriendNotes,
+);
 
 router.get("/", (req, res) => {
   let filePath = path.join(__dirname, "../assets/index.html");

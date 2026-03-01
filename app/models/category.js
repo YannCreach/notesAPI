@@ -1,4 +1,4 @@
-import supabase from "../database.js";
+import { supabaseAdmin as supabase } from "../database.js";
 
 class Category {
   static async findOneByLabel(userId, label) {
