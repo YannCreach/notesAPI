@@ -33,9 +33,6 @@ const corsOptions =
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Static assets (email images, etc.) — public, no auth
-app.use("/assets", express.static("app/assets"));
-
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
