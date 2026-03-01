@@ -1,8 +1,10 @@
 /**
  * Email template — Invitation to join Note To Myself
-Note To Myself
  * Sent to non-registered emails when a user adds them as a friend.
  */
+
+const BASE_URL = process.env.API_BASE_URL || "https://notes-api-pied.vercel.app";
+
 export function invitationEmailHtml({ fromName, fromEmail }) {
   const senderDisplay = fromName || fromEmail;
   const senderSub = fromName ? fromEmail : "";
@@ -13,8 +15,7 @@ export function invitationEmailHtml({ fromName, fromEmail }) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Vous êtes invité sur Note To Myself
-Note To Myself</title>
+  <title>Vous &ecirc;tes invit&eacute; sur Note To Myself</title>
   <!--[if mso]>
   <noscript>
     <xml>
@@ -35,23 +36,19 @@ Note To Myself</title>
         <!-- Card -->
         <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.06);">
 
-          <!-- Gradient header — taller for invitation, with illustration area -->
+          <!-- Gradient header -->
           <tr>
             <td style="background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);padding:40px 40px 36px;text-align:center;">
-              <!-- Logo -->
-              <img src="https://notes-api-pied.vercel.app/app/assets/logo_blanc.png" alt="Note To Myself
-Note To Myself" width="48" height="48" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
-              <p style="margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.8);">Note To Myself
-Note To Myself</p>
-              <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;line-height:1.3;">Vous êtes invité&nbsp;!</h1>
+              <img src="${BASE_URL}/assets/logo_blanc.png" alt="Note To Myself" width="48" height="48" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
+              <p style="margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.8);">Note To Myself</p>
+              <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;line-height:1.3;">Vous &ecirc;tes invit&eacute;&nbsp;!</h1>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
             <td style="padding:36px 40px 12px;">
-              <p style="margin:0;font-size:15px;color:#64748b;line-height:1.7;">Un ami souhaite partager ses découvertes avec vous sur Note To Myself
-Note To Myself.</p>
+              <p style="margin:0;font-size:15px;color:#64748b;line-height:1.7;">Un ami souhaite partager ses d&eacute;couvertes avec vous sur Note To Myself.</p>
             </td>
           </tr>
 
@@ -72,8 +69,7 @@ Note To Myself.</p>
                         <td style="padding-left:16px;vertical-align:middle;">
                           <p style="margin:0;font-size:16px;font-weight:600;color:#0f172a;line-height:1.3;">${senderDisplay}</p>
                           ${senderSub ? `<p style="margin:4px 0 0;font-size:13px;color:#94a3b8;line-height:1.3;">${senderSub}</p>` : ""}
-                          <p style="margin:8px 0 0;font-size:13px;color:#10b981;font-weight:500;line-height:1.3;">vous a invit&eacute; sur Note To Myself
-Note To Myself</p>
+                          <p style="margin:8px 0 0;font-size:13px;color:#10b981;font-weight:500;line-height:1.3;">vous a invit&eacute; sur Note To Myself</p>
                         </td>
                       </tr>
                     </table>
@@ -99,7 +95,7 @@ Note To Myself</p>
                         </td>
                         <td style="padding-left:12px;vertical-align:middle;">
                           <p style="margin:0;font-size:14px;color:#0f172a;font-weight:500;">Sauvegardez vos lieux favoris</p>
-                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Restaurants, bars, cafés et plus encore</p>
+                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Restaurants, bars, caf&eacute;s et plus encore</p>
                         </td>
                       </tr>
                     </table>
@@ -116,8 +112,8 @@ Note To Myself</p>
                           </div>
                         </td>
                         <td style="padding-left:12px;vertical-align:middle;">
-                          <p style="margin:0;font-size:14px;color:#0f172a;font-weight:500;">Créez des mémentos</p>
-                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Notez ce que vous avez aimé pour ne rien oublier</p>
+                          <p style="margin:0;font-size:14px;color:#0f172a;font-weight:500;">Cr&eacute;ez des m&eacute;mentos</p>
+                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Notez ce que vous avez aim&eacute; pour ne rien oublier</p>
                         </td>
                       </tr>
                     </table>
@@ -135,7 +131,7 @@ Note To Myself</p>
                         </td>
                         <td style="padding-left:12px;vertical-align:middle;">
                           <p style="margin:0;font-size:14px;color:#0f172a;font-weight:500;">Partagez avec vos amis</p>
-                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Consultez les lieux et mémentos de vos proches</p>
+                          <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Consultez les lieux et m&eacute;mentos de vos proches</p>
                         </td>
                       </tr>
                     </table>
@@ -152,8 +148,7 @@ Note To Myself</p>
                 <tr>
                   <td style="border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);">
                     <a href="#" target="_blank" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.3px;">
-                      Télécharger Note To Myself
-Note To Myself
+                      T&eacute;l&eacute;charger Note To Myself
                     </a>
                   </td>
                 </tr>
@@ -168,12 +163,12 @@ Note To Myself
                 <tr>
                   <td style="padding-right:8px;">
                     <a href="#" target="_blank">
-                      <img src="https://notes-api-pied.vercel.app/app/assets/logo_appstore.png" alt="App Store" width="120" height="40" style="display:block;border:0;outline:none;" />
+                      <img src="${BASE_URL}/assets/logo_appstore.png" alt="App Store" width="120" height="40" style="display:block;border:0;outline:none;" />
                     </a>
                   </td>
                   <td style="padding-left:8px;">
                     <a href="#" target="_blank">
-                      <img src="https://notes-api-pied.vercel.app/app/assets/logo_playstore.png" alt="Google Play" width="135" height="40" style="display:block;border:0;outline:none;" />
+                      <img src="${BASE_URL}/assets/logo_playstore.png" alt="Google Play" width="135" height="40" style="display:block;border:0;outline:none;" />
                     </a>
                   </td>
                 </tr>
@@ -190,8 +185,7 @@ Note To Myself
           <tr>
             <td style="padding:20px 40px 32px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-                Vous recevez cet email car un utilisateur de Note To Myself
-Note To Myself vous a invité à rejoindre l'application.<br/>
+                Vous recevez cet email car un utilisateur de Note To Myself vous a invit&eacute; &agrave; rejoindre l'application.<br/>
                 Si vous ne connaissez pas cette personne, vous pouvez ignorer ce message.
               </p>
             </td>
@@ -206,7 +200,6 @@ Note To Myself vous a invité à rejoindre l'application.<br/>
             <td style="padding:24px 16px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#94a3b8;">
                 &copy; ${new Date().getFullYear()} Note To Myself
-Note To Myself
               </p>
             </td>
           </tr>

@@ -2,6 +2,9 @@
  * Email template — Friend request notification
  * Sent to existing users when someone sends them a friend request.
  */
+
+const BASE_URL = process.env.API_BASE_URL || "https://notes-api-pied.vercel.app";
+
 export function friendRequestEmailHtml({ fromName, fromEmail }) {
   const senderDisplay = fromName || fromEmail;
   const senderSub = fromName ? fromEmail : "";
@@ -36,11 +39,8 @@ export function friendRequestEmailHtml({ fromName, fromEmail }) {
           <!-- Gradient header -->
           <tr>
             <td style="background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);padding:36px 40px 32px;text-align:center;">
-              <!-- Logo placeholder -->
-              <img src="https://notes-api-pied.vercel.app/app/assets/logo_blanc.png" alt="Note To Myself
-Note To Myself" width="48" height="48" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
-              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.8);">Note To Myself
-Note To Myself</p>
+              <img src="${BASE_URL}/assets/logo_blanc.png" alt="Note To Myself" width="48" height="48" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
+              <p style="margin:0;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.8);">Note To Myself</p>
             </td>
           </tr>
 
@@ -81,13 +81,12 @@ Note To Myself</p>
           <!-- CTA -->
           <tr>
             <td style="padding:12px 40px 8px;text-align:center;">
-              <p style="margin:0 0 24px;font-size:15px;color:#64748b;line-height:1.6;">Ouvrez l'application pour accepter ou décliner cette demande.</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#64748b;line-height:1.6;">Ouvrez l'application pour accepter ou d&eacute;cliner cette demande.</p>
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
                   <td style="border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);">
                     <a href="#" target="_blank" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.3px;">
                       Ouvrir Note To Myself
-Note To Myself
                     </a>
                   </td>
                 </tr>
@@ -104,8 +103,7 @@ Note To Myself
           <tr>
             <td style="padding:20px 40px 32px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-                Vous recevez cet email car quelqu'un vous a envoyé une demande d'ami sur Note To Myself
-Note To Myself.<br/>
+                Vous recevez cet email car quelqu'un vous a envoy&eacute; une demande d'ami sur Note To Myself.<br/>
                 Si vous ne connaissez pas cette personne, vous pouvez ignorer ce message.
               </p>
             </td>
@@ -120,7 +118,6 @@ Note To Myself.<br/>
             <td style="padding:24px 16px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#94a3b8;">
                 &copy; ${new Date().getFullYear()} Note To Myself
-Note To Myself
               </p>
             </td>
           </tr>
