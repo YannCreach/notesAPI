@@ -3,7 +3,8 @@
  * Sent to non-registered emails when a user adds them as a friend.
  */
 
-const BASE_URL = process.env.API_BASE_URL || "https://notes-api-pied.vercel.app";
+const BASE_URL =
+  process.env.API_BASE_URL || "https://notes-api-pied.vercel.app";
 
 export function invitationEmailHtml({ fromName, fromEmail }) {
   const senderDisplay = fromName || fromEmail;
@@ -39,8 +40,8 @@ export function invitationEmailHtml({ fromName, fromEmail }) {
           <!-- Gradient header -->
           <tr>
             <td style="background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);padding:40px 40px 36px;text-align:center;">
-              <img src="${BASE_URL}/assets/logo_blanc.png" alt="Note To Myself" width="48" height="48" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
-              <p style="margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.8);">Note To Myself</p>
+              <img src="${BASE_URL}/assets/logo_blanc.png" alt="Note To Myself" width="96" height="96" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
+              
               <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;line-height:1.3;">Vous &ecirc;tes invit&eacute;&nbsp;!</h1>
             </td>
           </tr>
