@@ -4,7 +4,6 @@ import axios from "axios";
 import { randomUUID } from "crypto";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, s3Bucket } from "../s3.js";
-const geoapifyApiKey = process.env.GEOAPIFY_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
 
 async function deleteS3FromUrl(url) {
@@ -59,6 +58,7 @@ class placeController {
             place_id: prediction.place_id,
             main_text_matched_substrings,
             location,
+            types: prediction.types || [],
           };
         }),
       );
@@ -92,25 +92,6 @@ class placeController {
     try {
       const response = await axios.get(url, { params });
       res.status(200).json(response.data.result);
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  static async placeFromApiByCoords(req, res, next) {
-    try {
-      const { lat, lng } = req.query;
-      const response = await axios.get("https://api.geoapify.com/v2/places", {
-        params: {
-          categories: "catering,entertainment,tourism",
-          filter: `circle:${lng},${lat},1000`,
-          bias: `proximity:${lng},${lat}`,
-          limit: 5,
-          lang: "fr",
-          apiKey: geoapifyApiKey,
-        },
-      });
-      res.status(200).json(response.data);
     } catch (error) {
       return next(error);
     }

@@ -7,7 +7,7 @@ Ce document décrit le contrat entre le frontend mobile et l'API NotesAPI.
 Le frontend mobile communique avec **deux backends** :
 
 1. **Supabase (direct)** — Toutes les opérations CRUD : places, notes, catégories, user preferences, tags.
-2. **NotesAPI (proxy)** — Recherche externe (Google Places, Geoapify) qui nécessite des clés API serveur.
+2. **NotesAPI (proxy)** — Recherche externe (Google Places) qui nécessite des clés API serveur.
 
 ## Base
 
@@ -49,14 +49,6 @@ Le frontend mobile communique avec **deux backends** :
   - Query:
     - `place_id` string (required)
   - Response `200`: Google Place Details result (raw)
-
-### Search by Coords (Geoapify Places)
-
-- `GET /searchcoords`
-  - Query:
-    - `lat` number (required)
-    - `lng` number (required)
-  - Response `200`: Geoapify Places GeoJSON — `{ type: "FeatureCollection", features: Array<{ properties: { name, formatted, categories, lat, lon, place_id, ... }, geometry }> }`
 
 ### Place Photo (Google proxy)
 

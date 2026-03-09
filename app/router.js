@@ -9,7 +9,6 @@ import {
   LocationAutoCompleteQuerySchema,
   LocationExistingQuerySchema,
   PlaceDetailsQuerySchema,
-  PlaceCoordsQuerySchema,
   UploadPlacePhotoSchema,
 } from "./validators/places.schemas.js";
 import {
@@ -46,13 +45,6 @@ router.get(
   "/getplacedetails",
   validate(PlaceDetailsQuerySchema, "query"),
   placeController.getPlaceDetails,
-);
-
-// Proxy Geoapify Places par coordonnées
-router.get(
-  "/searchcoords",
-  validate(PlaceCoordsQuerySchema, "query"),
-  placeController.placeFromApiByCoords,
 );
 
 // Proxy Google Place Details + lookup catégorie

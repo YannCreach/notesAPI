@@ -1,12 +1,12 @@
 # NotesAPI
 
-API Express servant de proxy vers les services externes (Google Places, Geoapify) qui nécessitent des clés API serveur. Toutes les opérations CRUD (places, notes, catégories, user preferences) sont gérées directement par le frontend mobile via Supabase.
+API Express servant de proxy vers les services externes (Google Places) qui nécessitent des clés API serveur. Toutes les opérations CRUD (places, notes, catégories, user preferences) sont gérées directement par le frontend mobile via Supabase.
 
 ## Architecture
 
 ```
 Mobile App ──► Supabase (CRUD direct, RLS protège les données)
-Mobile App ──► NotesAPI  (proxy Google / Geoapify, clés API côté serveur)
+Mobile App ──► NotesAPI  (proxy Google, clés API côté serveur)
 ```
 
 ## Supabase
@@ -31,7 +31,6 @@ SUPABASE_ANON_KEY=...
 
 # APIs externes (proxy)
 GOOGLE_API_KEY=...
-GEOAPIFY_API_KEY=...
 
 # Serveur
 SERVER_PORT=3000
@@ -97,11 +96,6 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health`.
 
 - `GET /getplacedetails?place_id=...`
   - Proxy vers Google Place Details (raw)
-
-### Search by Coords
-
-- `GET /searchcoords?lat=...&lng=...`
-  - Proxy vers Geoapify Places (GeoJSON FeatureCollection)
 
 ### Place Photo
 
@@ -174,10 +168,6 @@ curl -H "Authorization: Bearer <JWT>" \
 # Détails Google d'un lieu
 curl -H "Authorization: Bearer <JWT>" \
   "http://localhost:3000/getplacedetails?place_id=ChIJ..."
-
-# Geoapify Places par coordonnées
-curl -H "Authorization: Bearer <JWT>" \
-  "http://localhost:3000/searchcoords?lat=48.8&lng=2.3"
 
 # Place depuis Google avec catégorie
 curl -H "Authorization: Bearer <JWT>" \
