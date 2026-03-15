@@ -40,7 +40,7 @@ export function friendRequestEmailHtml({ fromName, fromEmail }) {
           <!-- Gradient header -->
           <tr>
             <td style="background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);padding:36px 40px 32px;text-align:center;">
-              <img src="${BASE_URL}/assets/logo_blanc.png" alt="Note To Myself" width="96" height="96" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
+              <img src="${BASE_URL}/assets/logo_ntm1.png" alt="Note To Myself" width="96" height="96" style="display:block;margin:0 auto 16px;border:0;outline:none;" />
               
             </td>
           </tr>
