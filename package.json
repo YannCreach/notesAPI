@@ -49,6 +49,9 @@
       "react-app/jest"
     ]
   },
+  "overrides": {
+    "fast-xml-parser": ">=5.4.3"
+  },
   "devDependencies": {
     "supabase": "^2.74.4",
     "supertest": "^6.3.4",
