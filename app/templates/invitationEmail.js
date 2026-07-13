@@ -3,12 +3,16 @@
  * Sent to non-registered emails when a user adds them as a friend.
  */
 
+import { escapeHtml } from "./escapeHtml.js";
+
 const BASE_URL =
   process.env.API_BASE_URL || "https://notes-api-pied.vercel.app";
 
 export function invitationEmailHtml({ fromName, fromEmail }) {
-  const senderDisplay = fromName || fromEmail;
-  const senderSub = fromName ? fromEmail : "";
+  const rawDisplay = fromName || fromEmail || "";
+  const senderDisplay = escapeHtml(rawDisplay);
+  const senderSub = escapeHtml(fromName ? fromEmail : "");
+  const initial = escapeHtml(rawDisplay.charAt(0).toUpperCase());
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -64,7 +68,7 @@ export function invitationEmailHtml({ fromName, fromEmail }) {
                         <!-- Avatar circle -->
                         <td width="52" valign="top">
                           <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);text-align:center;line-height:48px;font-size:20px;font-weight:700;color:#ffffff;">
-                            ${senderDisplay.charAt(0).toUpperCase()}
+                            ${initial}
                           </div>
                         </td>
                         <td style="padding-left:16px;vertical-align:middle;">

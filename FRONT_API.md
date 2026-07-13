@@ -12,8 +12,17 @@ Le frontend mobile communique avec **deux backends** :
 ## Base
 
 - Base URL: `http://localhost:<SERVER_PORT>` where `SERVER_PORT` is defined in `.env`.
-- Auth: All routes (except `/health`) require `Authorization: Bearer <JWT Supabase>`.
-- CORS: configure via `ALLOWED_ORIGINS` in `.env`.
+- Auth: All routes (except `/health` and `/placephoto`) require `Authorization: Bearer <JWT Supabase>`.
+- CORS: configure via `ALLOWED_ORIGINS` in `.env`. **En production, l'API refuse de démarrer si `ALLOWED_ORIGINS` est absent** (pas de fallback `*`).
+
+## Rate limiting
+
+Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "rate_limited" } }` en cas de dépassement) :
+
+- **Global** : 300 requêtes / 15 min / IP.
+- **`GET /placephoto`** (public) : 30 / min / IP.
+- **Proxys Google** (`/googleautocomplete`, `/getplacedetails`, `/placefromapi`) : 60 / min / utilisateur.
+- **`POST /addfriend`** : 20 / heure / utilisateur (anti-spam email).
 
 ## Health
 
@@ -118,7 +127,9 @@ Le frontend mobile communique avec **deux backends** :
     - `oldCatId` number (required)
     - `newCatId` number (required)
   - Response `200`: `{ updated: number }` — nombre de places mises à jour
-  - Réattribue toutes les places de l'utilisateur ayant `oldCatId` vers `newCatId`
+  - Response `400`: `{ error: "oldCatId and newCatId are required" }`
+  - Response `403`: `{ error: "Category not found" }` — si `oldCatId` ou `newCatId` n'appartient pas à l'utilisateur
+  - Réattribue toutes les places de l'utilisateur ayant `oldCatId` vers `newCatId` (les deux catégories doivent appartenir à l'utilisateur)
 
 ### Delete Memento
 
@@ -156,12 +167,14 @@ Standard error envelope:
 { "error": { "code": "string", "message": "string", "details": "any" } }
 ```
 
-Codes: `validation_error` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `internal_error` (500).
+Codes: `validation_error` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `rate_limited` (429), `internal_error` (500).
 
 ## CRUD (via Supabase direct)
 
 Toutes les opérations CRUD sont gérées directement par le frontend via le client Supabase (`@supabase/supabase-js`). Les RLS policies protègent les données par utilisateur.
 
 Tables concernées : `category`, `place`, `note`, `place_tag`, `note_tag`, `place_has_tag`, `note_has_tag`, `user_preferences`.
+
+> Les tables d'association `place_has_tag` / `note_has_tag` ont un SELECT **scopé au propriétaire** de l'entité parente (plus de lecture libre cross-utilisateur — voir `db/rls_fix_tag_visibility.sql`).
 
 Voir `BDD_API.md` pour la structure complète des tables et `db/create_db.sql` pour les policies RLS.

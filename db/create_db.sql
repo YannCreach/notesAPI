@@ -209,8 +209,11 @@ CREATE POLICY user_preferences_owner_update ON "user_preferences"
 CREATE POLICY user_preferences_owner_delete ON "user_preferences"
   FOR DELETE USING (user_id = auth.uid()::text);
 
--- place_has_tag : lecture libre, écriture via ownership du place
-CREATE POLICY place_tag_select_all ON "place_has_tag" FOR SELECT USING (true);
+-- place_has_tag : lecture et écriture réservées au propriétaire du place
+CREATE POLICY place_tag_select_owner ON "place_has_tag"
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = auth.uid()::text)
+  );
 CREATE POLICY place_tag_insert_owner ON "place_has_tag"
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = auth.uid()::text)
@@ -227,8 +230,11 @@ CREATE POLICY place_tag_update_owner ON "place_has_tag"
     EXISTS (SELECT 1 FROM "place" p WHERE p.id = place_id AND p.user_id = auth.uid()::text)
   );
 
--- note_has_tag : lecture libre, écriture via ownership de la note
-CREATE POLICY note_tag_select_all ON "note_has_tag" FOR SELECT USING (true);
+-- note_has_tag : lecture et écriture réservées au propriétaire de la note
+CREATE POLICY note_tag_select_owner ON "note_has_tag"
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = auth.uid()::text)
+  );
 CREATE POLICY note_tag_insert_owner ON "note_has_tag"
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM "note" n WHERE n.id = note_id AND n.user_id = auth.uid()::text)

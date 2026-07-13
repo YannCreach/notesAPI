@@ -4,7 +4,13 @@
 
 L'app mobile (React Native / Expo) a une nouvelle feature **Social** permettant aux utilisateurs connectés (auth Supabase) d'ajouter des amis par email, de gérer les demandes d'amitié, et de consulter les lieux et mémentos de leurs amis en lecture seule.
 
-Le front est entièrement implémenté. Il manque uniquement les endpoints backend.
+Le front **et** le backend sont désormais implémentés (voir `app/controllers/socialController.js`, `app/models/social.js`, `db/social_tables.sql`). Ce document reste la référence du contrat.
+
+**Notes d'implémentation (sécurité) :**
+
+- Le lookup d'un utilisateur par email et la récupération des amis passent par les RPC `get_user_id_by_email` / `get_users_by_ids` (`service_role` uniquement) — **pas** de `admin.listUsers()` (voir `db/security_rpcs.sql`).
+- `POST /addfriend` est **rate-limité** à 20 req/heure/utilisateur (anti-spam email → réponse `429 rate_limited`).
+- Les emails de notification/invitation échappent le HTML du nom/email de l'expéditeur (anti-injection HTML).
 
 ## Authentification
 
@@ -36,6 +42,7 @@ Codes HTTP attendus :
 - `401` — non authentifié
 - `404` — ressource non trouvée
 - `409` — conflit (demande déjà envoyée, déjà amis, etc.)
+- `429` — trop de requêtes (rate limiting, ex. `/addfriend`)
 
 ---
 

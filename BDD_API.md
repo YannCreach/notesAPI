@@ -167,8 +167,12 @@ Relations:
 - RLS activée sur `place`, `note`, `place_has_tag`, `note_has_tag`, `place_tag`, `note_tag`, `category`, `user_preferences`.
 - Politiques owner-based utilisent `auth.uid()::text`.
 - `category` : SELECT/INSERT/UPDATE/DELETE per-user (`user_id = auth.uid()::text`).
-- `place_tag`, `note_tag` : lecture libre (SELECT) + insertion libre (INSERT) — le frontend crée les tags directement.
-- Les tables de jointure (`place_has_tag`, `note_has_tag`) autorisent l’écriture uniquement au propriétaire de l’entité parente.
+- `place_tag`, `note_tag` : lecture libre (SELECT) + insertion libre (INSERT) — dictionnaires de libellés partagés (aucune donnée utilisateur).
+- Les tables de jointure (`place_has_tag`, `note_has_tag`) : **lecture ET écriture** réservées au propriétaire de l’entité parente. Le SELECT libre initial a été retiré pour éviter l’énumération cross-utilisateur (voir `db/rls_fix_tag_visibility.sql`).
+
+### RPC de sécurité (backend uniquement)
+
+`db/security_rpcs.sql` définit `get_user_id_by_email(text)` et `get_users_by_ids(uuid[])` (SECURITY DEFINER), exécutables **uniquement par le `service_role`**. Elles remplacent `admin.listUsers()` pour la feature social (lookup ciblé, pas d’énumération complète). Les tables `friend_requests`, `friends`, `pending_invitations` et leur RLS sont dans `db/social_tables.sql`.
 
 ## Indexes (perf)
 

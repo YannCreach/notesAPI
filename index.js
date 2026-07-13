@@ -5,12 +5,17 @@ import { checkSupabaseJwt } from "./app/middleware/checkSupabaseJwt.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import { globalLimiter, photoLimiter } from "./app/middleware/rateLimiters.js";
 
 const app = express();
 
 dotenv.config();
 
 const serverPort = process.env.SERVER_PORT;
+const isProd = process.env.NODE_ENV === "production";
+
+// Trust the platform proxy (Vercel/…) so rate limiting sees the real client IP.
+app.set("trust proxy", 1);
 
 // Security headers
 app.use(helmet());
@@ -20,6 +25,14 @@ const allowed = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+// Fail-safe: never fall back to a wildcard origin in production.
+if (allowed.length === 0 && isProd) {
+  throw new Error(
+    "ALLOWED_ORIGINS must be set in production (refusing to serve with CORS '*')",
+  );
+}
+
 const corsOptions =
   allowed.length === 0
     ? { origin: "*" }
@@ -33,6 +46,9 @@ const corsOptions =
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Global rate limiting baseline.
+app.use(globalLimiter);
+
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
@@ -41,7 +57,12 @@ app.get("/health", (req, res) => {
 import placeController from "./app/controllers/placeController.js";
 import { validate } from "./app/middleware/validate.js";
 import { PlacePhotoQuerySchema } from "./app/validators/places.schemas.js";
-app.get("/placephoto", validate(PlacePhotoQuerySchema, "query"), placeController.getPlacePhoto);
+app.get(
+  "/placephoto",
+  photoLimiter,
+  validate(PlacePhotoQuerySchema, "query"),
+  placeController.getPlacePhoto,
+);
 
 app.use(checkSupabaseJwt);
 

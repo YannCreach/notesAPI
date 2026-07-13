@@ -21,18 +21,15 @@ class socialController {
         throw new ApiError(400, "cannot_add_self", "Cannot add yourself");
       }
 
-      // Look up target user by email
-      const { data: usersData, error: listError } =
-        await supabaseAdmin.auth.admin.listUsers();
-      if (listError) throw new Error(listError.message);
-
-      const targetUser = usersData.users.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase(),
+      // Look up target user by email (scoped RPC — no full-table enumeration)
+      const { data: targetId, error: lookupError } = await supabaseAdmin.rpc(
+        "get_user_id_by_email",
+        { p_email: email },
       );
+      if (lookupError) throw new Error(lookupError.message);
 
-      if (targetUser) {
+      if (targetId) {
         // Cas A — Le compte existe
-        const targetId = targetUser.id;
 
         // Already friends?
         const existing = await Social.findFriendship(userId, targetId);
@@ -98,21 +95,22 @@ class socialController {
         return res.status(200).json([]);
       }
 
-      // Fetch user info for each friend via admin API
-      const { data: usersData, error: listError } =
-        await supabaseAdmin.auth.admin.listUsers();
-      if (listError) throw new Error(listError.message);
-
-      const usersMap = new Map(
-        usersData.users.map((u) => [u.id, u]),
+      // Fetch user info for these friend ids only (scoped RPC)
+      const friendIds = friendRows.map((row) => row.friend_id);
+      const { data: users, error: usersError } = await supabaseAdmin.rpc(
+        "get_users_by_ids",
+        { p_ids: friendIds },
       );
+      if (usersError) throw new Error(usersError.message);
+
+      const usersMap = new Map((users || []).map((u) => [u.id, u]));
 
       const friends = friendRows.map((row) => {
         const user = usersMap.get(row.friend_id);
         return {
           id: row.friend_id,
           email: user?.email || null,
-          name: user?.user_metadata?.name || null,
+          name: user?.name || null,
           created_at: row.created_at,
         };
       });

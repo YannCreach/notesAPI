@@ -33,7 +33,6 @@ class placeController {
 
     try {
       const response = await axios.get(url, { params });
-      console.log("Google Autocomplete API response:", response.data);
 
       const detailsUrl =
         "https://maps.googleapis.com/maps/api/place/details/json";
@@ -182,7 +181,6 @@ class placeController {
 
   static async uploadMementoPhoto(req, res, next) {
     try {
-      console.log("[uploadMementoPhoto] file:", req.file ? { originalname: req.file.originalname, mimetype: req.file.mimetype, size: req.file.size } : "NONE");
       if (!req.file) {
         return res.status(400).json({ error: "No file provided" });
       }
@@ -262,10 +260,8 @@ class placeController {
     try {
       const userId = req.auth.payload.sub;
       const { id } = req.query;
-      console.log("[deletePlace] userId:", userId, "placeId:", id);
 
       const place = await Place.findPlaceWithMementos(userId, id);
-      console.log("[deletePlace] place found:", JSON.stringify(place));
       if (!place) {
         return res.status(404).json({ error: "Place not found" });
       }
@@ -274,14 +270,11 @@ class placeController {
         .map((note) => deleteS3FromUrl(note.cover));
       s3Deletions.push(deleteS3FromUrl(place.cover));
       await Promise.all(s3Deletions);
-      console.log("[deletePlace] S3 deletions done");
 
       await Place.deletePlace(userId, id);
-      console.log("[deletePlace] DB deletion done");
 
       res.status(200).json({ deleted: true });
     } catch (error) {
-      console.error("[deletePlace] ERROR:", error);
       return next(error);
     }
   }
@@ -290,6 +283,22 @@ class placeController {
     try {
       const userId = req.auth.payload.sub;
       const { oldCatId, newCatId } = req.query;
+
+      if (!oldCatId || !newCatId) {
+        return res
+          .status(400)
+          .json({ error: "oldCatId and newCatId are required" });
+      }
+
+      // Ensure both categories belong to the caller (prevents assigning a
+      // place to another user's category).
+      const [oldOwned, newOwned] = await Promise.all([
+        Category.existsForUser(userId, oldCatId),
+        Category.existsForUser(userId, newCatId),
+      ]);
+      if (!oldOwned || !newOwned) {
+        return res.status(403).json({ error: "Category not found" });
+      }
 
       const updated = await Place.updateCategory(userId, oldCatId, newCatId);
       res.status(200).json({ updated: updated.length });

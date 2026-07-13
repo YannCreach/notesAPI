@@ -18,6 +18,10 @@ import {
   FriendPlacesQuerySchema,
   FriendNotesQuerySchema,
 } from "./validators/social.schemas.js";
+import {
+  addFriendLimiter,
+  googleProxyLimiter,
+} from "./middleware/rateLimiters.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,6 +34,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Proxy Google Autocomplete
 router.get(
   "/googleautocomplete",
+  googleProxyLimiter,
   validate(LocationAutoCompleteQuerySchema, "query"),
   placeController.getLocationAutoComplete,
 );
@@ -43,6 +48,7 @@ router.get(
 // Proxy Google Place Details
 router.get(
   "/getplacedetails",
+  googleProxyLimiter,
   validate(PlaceDetailsQuerySchema, "query"),
   placeController.getPlaceDetails,
 );
@@ -50,6 +56,7 @@ router.get(
 // Proxy Google Place Details + lookup catégorie
 router.get(
   "/placefromapi",
+  googleProxyLimiter,
   validate(PlaceDetailsQuerySchema, "query"),
   placeController.placeFromApiById,
 );
@@ -90,6 +97,7 @@ router.delete("/deleteresource", placeController.deleteResource);
 // --- Social ---
 router.post(
   "/addfriend",
+  addFriendLimiter,
   validate(AddFriendBodySchema, "body"),
   socialController.addFriend,
 );
