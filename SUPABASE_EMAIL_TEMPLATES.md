@@ -174,6 +174,12 @@ Utilise les variables Supabase : `{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{
 
 **Subject :** `R&eacute;initialisez votre mot de passe — Note To Myself`
 
+> ⚠️ **Ce template envoie un code OTP (`{{ .Token }}`), pas un lien.** Il est indissociable du
+> flux mobile ([ForgotPassword.js](../notesMobile/src/components/Login/ForgotPassword.js)) qui
+> appelle `verifyOtp({ type: "recovery" })` puis `updateUser({ password })`.
+> Ne pas le remplacer par `{{ .ConfirmationURL }}` : le lien pointerait vers la Site URL
+> (`localhost:3000`) et le reset serait inutilisable depuis l'app.
+
 ```html
 <!DOCTYPE html>
 <html lang="fr">
@@ -241,8 +247,8 @@ Utilise les variables Supabase : `{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{
                   style="margin:0;font-size:15px;color:#64748b;line-height:1.6;"
                 >
                   Vous avez demand&eacute; &agrave; r&eacute;initialiser votre
-                  mot de passe. Cliquez sur le bouton ci-dessous pour en choisir
-                  un nouveau.
+                  mot de passe. Saisissez le code ci-dessous dans
+                  l&rsquo;application pour en choisir un nouveau.
                 </p>
               </td>
             </tr>
@@ -259,34 +265,28 @@ Utilise les variables Supabase : `{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{
                 >
                   <tr>
                     <td
-                      style="border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#0891b2 100%);"
+                      style="border-radius:10px;background-color:#f1f5f9;border:1px solid #e2e8f0;padding:18px 36px;"
                     >
-                      <a
-                        href="{{ .ConfirmationURL }}"
-                        target="_blank"
-                        style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.3px;"
+                      <span
+                        style="display:inline-block;font-family:'Courier New',Courier,monospace;font-size:34px;font-weight:700;color:#0f172a;letter-spacing:10px;line-height:1;"
                       >
-                        Choisir un nouveau mot de passe
-                      </a>
+                        {{ .Token }}
+                      </span>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
 
-            <!-- Fallback link -->
+            <!-- Hint -->
             <tr>
               <td style="padding:16px 40px 0;text-align:center;">
                 <p
                   style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;"
                 >
-                  Si le bouton ne fonctionne pas, copiez ce lien dans votre
-                  navigateur&nbsp;:
-                </p>
-                <p
-                  style="margin:8px 0 0;font-size:11px;color:#10b981;word-break:break-all;line-height:1.5;"
-                >
-                  {{ .ConfirmationURL }}
+                  Ce code est valable 1&nbsp;heure. Si vous n&rsquo;&ecirc;tes
+                  pas &agrave; l&rsquo;origine de cette demande, ignorez cet
+                  email&nbsp;: votre mot de passe restera inchang&eacute;.
                 </p>
               </td>
             </tr>
