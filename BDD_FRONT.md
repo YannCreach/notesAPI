@@ -43,6 +43,7 @@ Ce document décrit le schéma actuel de la base SQLite locale et les liaisons e
 - `rating` INTEGER CHECK (0–5)
 - `favorite` INTEGER NOT NULL DEFAULT 0
 - `comment` TEXT
+- `quickcom` TEXT — note rapide libre (migration `place_add_quickcom.sql`)
 - `slug` TEXT
 - `googleid` TEXT
 - `yelpid` TEXT

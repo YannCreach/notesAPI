@@ -39,7 +39,13 @@ const corsOptions =
     : {
         origin: (origin, callback) => {
           if (!origin || allowed.includes(origin)) return callback(null, true);
-          return callback(new Error("Not allowed by CORS"));
+          // Un refus CORS est une décision de politique, pas une panne : sans
+          // statusCode l'errorHandler retomberait sur 500, indiscernable d'un
+          // vrai bug dans le monitoring.
+          const err = new Error("Not allowed by CORS");
+          err.statusCode = 403;
+          err.code = "cors_forbidden";
+          return callback(err);
         },
         optionsSuccessStatus: 200,
       };

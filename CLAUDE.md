@@ -63,6 +63,7 @@ Migrations SQL dans `db/`, **appliquées manuellement** (l'API ne migre pas au b
 - `social_tables.sql` — friends / friend_requests / pending_invitations + RLS
 - `security_rpcs.sql` — RPC lookup users (**requis** pour /addfriend et /friends)
 - `rls_fix_tag_visibility.sql` — RLS scopé sur place_has_tag / note_has_tag
+- `place_add_quickcom.sql` — colonne `quickcom` (bases déjà en service ; `create_db.sql` la porte déjà)
 
 Après tout changement de RLS/RPC, ré-exécuter le fichier concerné sur Supabase.
 

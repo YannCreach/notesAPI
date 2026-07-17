@@ -74,6 +74,7 @@ psql "postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/post
 psql "$SUPABASE_DB_URL" -f ./db/social_tables.sql          # tables & RLS de la feature social
 psql "$SUPABASE_DB_URL" -f ./db/security_rpcs.sql          # RPC lookup users (REQUIS pour /addfriend et /friends)
 psql "$SUPABASE_DB_URL" -f ./db/rls_fix_tag_visibility.sql # RLS scopé sur place_has_tag / note_has_tag
+psql "$SUPABASE_DB_URL" -f ./db/place_add_quickcom.sql     # colonne quickcom (bases deja en service)
 ```
 
 > Sans `security_rpcs.sql`, les endpoints `/addfriend` et `/friends` échouent (RPC absente).

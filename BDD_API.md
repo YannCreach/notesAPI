@@ -47,6 +47,7 @@ Relations:
 - `rating` INTEGER
 - `favorite` BOOLEAN NOT NULL DEFAULT FALSE
 - `comment` TEXT
+- `quickcom` TEXT — note rapide libre, éditable depuis PlaceDetails
 - `slug` VARCHAR(255)
 - `googleid` VARCHAR(50)
 - `yelpid` VARCHAR(50)
