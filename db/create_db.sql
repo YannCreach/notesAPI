@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS "place" (
   "rating" INTEGER,
   "favorite" BOOLEAN NOT NULL DEFAULT FALSE,
   "comment" TEXT,
+  "quickcom" TEXT,
   "slug" VARCHAR(255),
   "googleid" VARCHAR(50),
   "yelpid" VARCHAR(50),
