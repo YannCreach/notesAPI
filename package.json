@@ -54,7 +54,7 @@
     "fast-xml-parser": ">=5.4.3"
   },
   "devDependencies": {
-    "supabase": "^2.74.4",
+    "supabase": "^2.109.1",
     "supertest": "^6.3.4",
     "vitest": "^1.6.1"
   }

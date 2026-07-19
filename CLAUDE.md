@@ -62,7 +62,7 @@ Le schéma évolue par **migrations versionnées Supabase** dans `supabase/migra
 (CLI `npx supabase`, table `schema_migrations` sur la base). **Workflow complet :
 [MIGRATIONS.md](MIGRATIONS.md).**
 
-- Nouvelle évolution : `npx supabase migration new <nom>` → éditer → `db push`.
+- Nouvelle évolution : `npx supabase migration new <nom>` → éditer → appliquer le SQL via le **dashboard SQL Editor** (la CLI ne peut pas `db push` sur ce projet — voir MIGRATIONS.md), puis committer.
 - Additif de préférence (jamais de `DROP`/`RENAME` direct — expand-contract).
 - **Couplage** : tout champ ajouté ici doit l'être aussi côté SQLite local
   (`notesMobile/src/db/migrations.js`), sinon `syncLocalToRemote` casse.

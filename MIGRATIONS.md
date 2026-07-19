@@ -1,59 +1,45 @@
 # Migrations Supabase — notesAPI
 
-Le schéma Postgres (prod) évolue **uniquement** par migrations versionnées dans
-`supabase/migrations/`. La CLI tient une table `schema_migrations` sur la base :
-elle sait ce qui est appliqué, ne rejoue jamais une migration, et ne pousse que
-les incréments manquants.
+Le schéma Postgres évolue par **fichiers de migration versionnés** dans
+`supabase/migrations/` (horodatés, ordonnés, revus en diff, tracés par git).
+C'est le pendant du SQLite local
+([notesMobile/src/db/migrations.js](../notesMobile/src/db/migrations.js)).
 
-> C'est le pendant Postgres de ce que fait déjà le SQLite local
-> ([notesMobile/src/db/migrations.js](../notesMobile/src/db/migrations.js), table `migrations`).
+## ⚠️ Contrainte de ce projet : la CLI ne peut pas piloter la base distante
 
-Project ref : `najywmppmhwxskklenzu` (public — sous-domaine de l'API).
-CLI : `npx supabase ...` (dépendance de dev, pas d'install globale requise).
+`supabase db push` / `link` / `migration repair` **échouent** ici avec :
 
----
-
-## 1. Onboarding — À FAIRE UNE SEULE FOIS
-
-La prod a **déjà** le schéma de la baseline (`*_baseline_schema.sql`). Il ne faut
-donc pas la *rejouer* dessus, juste dire à Supabase qu'elle est déjà appliquée.
-
-```bash
-cd notesAPI
-
-# a) Se connecter (ouvre le navigateur, ou export SUPABASE_ACCESS_TOKEN=...)
-npx supabase login
-
-# b) Lier le projet local à la base distante (demande le mot de passe DB —
-#    Dashboard > Project Settings > Database > Database password)
-npx supabase link --project-ref najywmppmhwxskklenzu
-
-# c) Marquer la baseline comme DÉJÀ appliquée sur la prod (ne l'exécute pas)
-#    Remplace <VERSION> par l'horodatage du fichier baseline (le prefixe du nom).
-npx supabase migration repair --status applied <VERSION>
-
-# d) Vérifier : la baseline doit apparaitre "Applied" des deux cotes
-npx supabase migration list
+```
+permission denied to alter role "cli_login_postgres"
 ```
 
-> Alternative (si tu préfères repartir de la réalité) : `npx supabase db pull`
-> introspecte la base distante, régénère une baseline exacte et la marque
-> appliquée. Supprime alors le fichier baseline consolidé pour éviter le doublon.
+Supabase restreint les privilèges du rôle `postgres` sur les projets récents ;
+la CLI ne peut donc pas créer son rôle de login temporaire. Ce **n'est pas
+contournable** proprement. → On applique les migrations via l'**éditeur SQL du
+dashboard**, qui tourne avec un rôle privilégié.
+
+La CLI reste utile pour **créer** les fichiers (ça, c'est 100 % local et marche).
 
 ---
 
-## 2. Cycle courant — à chaque changement de schéma
+## Cycle courant — à chaque changement de schéma
 
 ```bash
-# 1. Créer une migration vide horodatée
+# 1. Créer une migration vide horodatée (local, aucune connexion requise)
 npx supabase migration new add_place_priority
-
-# 2. Éditer le fichier cree dans supabase/migrations/ (SQL additif de preference)
-#    ex: ALTER TABLE "place" ADD COLUMN "priority" INTEGER DEFAULT 0;
-
-# 3. TESTER sur la base de staging d'abord (voir §3), puis :
-npx supabase db push        # applique uniquement les migrations non encore appliquees
 ```
+
+```sql
+-- 2. Éditer le fichier créé dans supabase/migrations/ — SQL additif de préférence
+ALTER TABLE "place" ADD COLUMN IF NOT EXISTS "priority" INTEGER DEFAULT 0;
+```
+
+3. **Appliquer** : copier ce SQL dans **Supabase Studio → SQL Editor → Run**
+   (d'abord sur staging si tu en as un — voir plus bas — puis sur la prod).
+
+4. **Committer** le fichier. Règle d'or de traçabilité : **appliquer puis
+   committer**, pour que l'invariant tienne — *tout fichier présent dans
+   `supabase/migrations/` sur `master` est déjà appliqué en prod*.
 
 ⚠️ **Couplage local ↔ remote** : `syncLocalToRemote` mappe le SQLite local vers
 Supabase. Tout champ ajouté ici doit l'être **aussi** côté mobile
@@ -61,38 +47,49 @@ Supabase. Tout champ ajouté ici doit l'être **aussi** côté mobile
 
 ---
 
-## 3. Staging — tester sans risque
+## Baseline
 
-Crée un **second projet Supabase gratuit** = bac à sable. Applique-y chaque
-migration avant la prod :
-
-```bash
-npx supabase link --project-ref <REF_STAGING>
-npx supabase db push          # rejoue TOUTE l'historique sur une base vierge
-# valide l'app contre staging, puis re-link sur la prod pour le push final
-```
+`supabase/migrations/*_baseline_schema.sql` reflète le schéma **déjà en prod**
+(create_db + social_tables + security_rpcs). Aucune action à faire dessus : c'est
+le point de départ de l'historique, pas une migration à rejouer.
 
 ---
 
-## 4. Règles d'or
+## Staging (recommandé)
+
+Un **second projet Supabase gratuit** = bac à sable. Pour l'amorcer, exécute la
+baseline puis chaque migration dans son SQL Editor. Ensuite, teste-y toute
+nouvelle migration avant de la passer en prod.
+
+---
+
+## Règles d'or
 
 - **Additif d'abord.** Ajouter colonne/table/champ nullable ne perd jamais de
   données. Pour renommer/supprimer/changer un type : **expand-contract** — ajoute
-  le nouveau, copie les données (`UPDATE`), bascule le code, supprime l'ancien
-  seulement quand plus rien ne le lit. Chaque étape est réversible.
-- **Backup avant tout changement destructif.** Supabase free tier n'a pas de PITR
-  fiable : `pg_dump "$SUPABASE_DB_URL" > backup_$(date +%F).sql` avant un `db push`
-  qui touche à l'existant. Pour de vrais utilisateurs, le plan Pro (PITR) se
+  le nouveau, copie (`UPDATE`), bascule le code, supprime l'ancien seulement quand
+  plus rien ne le lit. Chaque étape est réversible.
+- **`IF NOT EXISTS` / `IF EXISTS`** dans les migrations : si tu réappliques par
+  erreur dans le SQL Editor, c'est un no-op au lieu d'une erreur.
+- **Backup avant tout changement destructif.** Le free tier n'a pas de PITR
+  fiable : `pg_dump "$SUPABASE_DB_URL" > backup_$(date +%F).sql` avant d'appliquer
+  un DROP/ALTER sur l'existant. Pour de vrais utilisateurs, le plan Pro (PITR) se
   justifie.
 - **Ne jamais rejouer `db/create_db.sql` sur la prod** — il contient des `DROP`.
-  C'est désormais un artefact historique ; la source de vérité est
-  `supabase/migrations/`.
+
+---
+
+## Si l'accès CLI est débloqué un jour
+
+Si tu migres vers un setup où la CLI peut se connecter (rôle privilégié, ou
+Supabase lève la restriction), le flux redevient : `supabase link --project-ref
+najywmppmhwxskklenzu`, `migration repair --status applied <version_baseline>`
+(marquer la baseline comme appliquée), puis `supabase db push` pour l'auto-apply.
 
 ---
 
 ## Rapport avec `db/*.sql`
 
-Les anciens fichiers de `db/` (create_db, social_tables, security_rpcs,
-rls_fix_tag_visibility, place_add_quickcom) sont **consolidés dans la baseline**
-et conservés à titre de référence. `db/seed_db.sql` reste le jeu de données de
-démo. Toute **nouvelle** évolution passe par `supabase/migrations/`, plus par `db/`.
+Anciens fichiers consolidés dans la baseline, conservés en référence
+(voir `db/README.md`). `db/seed_db.sql` reste le jeu de démo. Toute **nouvelle**
+évolution passe par `supabase/migrations/`.
