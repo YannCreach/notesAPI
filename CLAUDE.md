@@ -58,14 +58,16 @@ Autres invariants :
 
 ## Base de données
 
-Migrations SQL dans `db/`, **appliquées manuellement** (l'API ne migre pas au boot), dans l'ordre :
-- `create_db.sql` — schéma complet + RLS + indexes (base vierge)
-- `social_tables.sql` — friends / friend_requests / pending_invitations + RLS
-- `security_rpcs.sql` — RPC lookup users (**requis** pour /addfriend et /friends)
-- `rls_fix_tag_visibility.sql` — RLS scopé sur place_has_tag / note_has_tag
-- `place_add_quickcom.sql` — colonne `quickcom` (bases déjà en service ; `create_db.sql` la porte déjà)
+Le schéma évolue par **migrations versionnées Supabase** dans `supabase/migrations/`
+(CLI `npx supabase`, table `schema_migrations` sur la base). **Workflow complet :
+[MIGRATIONS.md](MIGRATIONS.md).**
 
-Après tout changement de RLS/RPC, ré-exécuter le fichier concerné sur Supabase.
+- Nouvelle évolution : `npx supabase migration new <nom>` → éditer → `db push`.
+- Additif de préférence (jamais de `DROP`/`RENAME` direct — expand-contract).
+- **Couplage** : tout champ ajouté ici doit l'être aussi côté SQLite local
+  (`notesMobile/src/db/migrations.js`), sinon `syncLocalToRemote` casse.
+- `db/*.sql` = artefacts historiques consolidés dans la baseline (voir `db/README.md`) ;
+  ne plus les rejouer sur la prod (`create_db.sql` contient des `DROP`).
 
 ## Variables d'environnement
 
