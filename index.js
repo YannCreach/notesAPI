@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { globalLimiter, photoLimiter } from "./app/middleware/rateLimiters.js";
+import { supabaseAdmin } from "./app/database.js";
 
 const app = express();
 
@@ -69,6 +70,26 @@ app.get(
   validate(PlacePhotoQuerySchema, "query"),
   placeController.getPlacePhoto,
 );
+
+// Keep-alive : lecture triviale sur la base pour éviter la mise en pause
+// automatique du projet Supabase (inactivité). Déclenché par Vercel Cron
+// 2x/jour — voir vercel.json. Public (comme /health) mais protégé par
+// CRON_SECRET : Vercel envoie `Authorization: Bearer <CRON_SECRET>` sur les
+// invocations cron dès que la variable est définie côté projet Vercel.
+app.get("/cron/keep-alive", async (req, res) => {
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ status: "unauthorized" });
+  }
+  // head:true => pas de données remontées, juste un COUNT (requête minimale).
+  const { error } = await supabaseAdmin
+    .from("category")
+    .select("id", { count: "exact", head: true });
+  if (error) {
+    return res.status(500).json({ status: "error" });
+  }
+  return res.status(200).json({ status: "ok" });
+});
 
 app.use(checkSupabaseJwt);
 
