@@ -51,7 +51,8 @@
     ]
   },
   "overrides": {
-    "fast-xml-parser": ">=5.4.3"
+    "fast-xml-parser": ">=5.4.3",
+    "brace-expansion": ">=2.0.2"
   },
   "devDependencies": {
     "supabase": "^2.109.1",
