@@ -179,6 +179,14 @@ Toutes les routes nécessitent un JWT Supabase valide, sauf `GET /health` et `GE
   - Supprime une ressource S3 (vérification ownership via userId dans le nom de fichier)
   - Response `200`: `{ deleted: true }`
 
+### Delete Account
+
+- `DELETE /deleteaccount`
+  - Supprime **définitivement** le compte du porteur du token : photos S3, lieux, mementos, catégories, tags, préférences, liens sociaux (dans les deux sens), puis l'utilisateur Supabase Auth
+  - Nécessite `SUPABASE_SERVICE_ROLE_KEY` : supprimer un utilisateur Auth est impossible avec la clé `anon`, c'est pourquoi l'opération vit ici et pas dans l'app mobile
+  - Response `200`: `{ deleted: true }`
+  - Response `500`: `{ error: { code: "account_deletion_failed" } }` — données supprimées mais compte Auth subsistant (réessayable)
+
 ### Exemples curl
 
 ```bash

@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import multer from "multer";
+import accountController from "./controllers/accountController.js";
 import placeController from "./controllers/placeController.js";
 import socialController from "./controllers/socialController.js";
 import { validate } from "./middleware/validate.js";
@@ -128,6 +129,10 @@ router.get(
   validate(FriendNotesQuerySchema, "query"),
   socialController.getFriendNotes,
 );
+
+// --- Compte ---
+// Suppression définitive du compte du porteur du token et de toutes ses données.
+router.delete("/deleteaccount", accountController.deleteAccount);
 
 router.get("/", (req, res) => {
   let filePath = path.join(__dirname, "../assets/index.html");

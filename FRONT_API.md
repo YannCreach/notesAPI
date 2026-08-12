@@ -159,6 +159,14 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
   - Response `403`: `{ error: "Forbidden" }` — si le `userId` dans le nom de fichier ne correspond pas au JWT
   - Supprime une ressource S3 avec vérification d'ownership via le nom de fichier (`{uuid}_{userId}.{ext}`)
 
+### Delete Account
+
+- `DELETE /deleteaccount`
+  - Pas de paramètre : le compte supprimé est toujours celui du JWT
+  - Response `200`: `{ deleted: true }`
+  - Response `500`: `{ error: { code: "account_deletion_failed" } }` — les données ont été supprimées mais l'utilisateur Auth subsiste ; l'appel peut être rejoué
+  - **Irréversible.** Supprime les photos S3, les lieux, mementos, catégories, tags, préférences, les liens sociaux dans les deux sens, puis l'utilisateur Supabase Auth. Le client doit ensuite se déconnecter et effacer sa base locale.
+
 ## Error Format
 
 Standard error envelope:
