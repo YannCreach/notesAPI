@@ -20,6 +20,10 @@ export const PlacePhotoQuerySchema = z.object({
   maxwidth: z.union([z.string(), z.number()]).optional(),
 });
 
+export const CoverQuerySchema = z.object({
+  key: z.string().min(1).max(512),
+});
+
 export const UploadPlacePhotoSchema = z.object({
   photo_reference: z.string().min(1),
   place_id: z.string().min(1),

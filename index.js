@@ -63,12 +63,24 @@ app.get("/health", (req, res) => {
 // Public: photo proxy (used as <Image src=...>, no auth header possible)
 import placeController from "./app/controllers/placeController.js";
 import { validate } from "./app/middleware/validate.js";
-import { PlacePhotoQuerySchema } from "./app/validators/places.schemas.js";
+import {
+  PlacePhotoQuerySchema,
+  CoverQuerySchema,
+} from "./app/validators/places.schemas.js";
 app.get(
   "/placephoto",
   photoLimiter,
   validate(PlacePhotoQuerySchema, "query"),
   placeController.getPlacePhoto,
+);
+
+// Public pour la même raison : redirige vers une URL S3 présignée (le bucket
+// des photos est privé). Voir placeController.getCover.
+app.get(
+  "/cover",
+  photoLimiter,
+  validate(CoverQuerySchema, "query"),
+  placeController.getCover,
 );
 
 // Keep-alive : lecture triviale sur la base pour éviter la mise en pause

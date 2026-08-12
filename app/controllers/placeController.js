@@ -2,9 +2,22 @@ import { Category } from "../models/index.js";
 import Place from "../models/place.js";
 import axios from "axios";
 import { randomUUID } from "crypto";
-import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client, s3Bucket } from "../s3.js";
 const googleApiKey = process.env.GOOGLE_API_KEY;
+
+// Les seuls préfixes que l'app publie. Une clé arbitraire signerait n'importe
+// quel objet du bucket — qui sert aussi à autre chose que les photos.
+const COVER_PREFIXES = ["place-covers/", "memento-photos/", "place-photos/"];
+
+// Assez court pour qu'une URL qui fuite ne serve pas longtemps, assez long pour
+// qu'une liste entière se charge sur une connexion lente.
+const COVER_URL_TTL_S = 900;
 
 async function deleteS3FromUrl(url) {
   const bucketPrefix = `https://${s3Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
@@ -113,6 +126,43 @@ class placeController {
       res.set("Content-Type", response.headers["content-type"]);
       res.set("Cache-Control", "public, max-age=86400");
       response.data.pipe(res);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  /**
+   * Sert une photo du bucket, qui est privé.
+   *
+   * L'app stocke l'URL S3 publique de la photo, mais le bucket ne l'est pas :
+   * l'objet répondait 403 et la carte tombait sur son placeholder dès que
+   * l'URI locale avait disparu. Plutôt que d'ouvrir le bucket — il héberge
+   * aussi des sauvegardes — on redirige vers une URL présignée de courte
+   * durée : l'image se télécharge en direct depuis S3, sans transiter par
+   * cette fonction.
+   *
+   * Publique et rate-limitée, comme /placephoto : une balise <Image> n'envoie
+   * pas d'en-tête d'auth de façon fiable, et un en-tête Authorization suivi
+   * jusqu'à S3 entrerait en conflit avec la signature. Les clés sont des UUID,
+   * et seuls les préfixes photos sont signables.
+   */
+  static async getCover(req, res, next) {
+    try {
+      const key = String(req.query.key || "");
+      if (key.includes("..") || !COVER_PREFIXES.some((p) => key.startsWith(p))) {
+        return res.status(400).json({ error: "Invalid key" });
+      }
+
+      const url = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: s3Bucket, Key: key }),
+        { expiresIn: COVER_URL_TTL_S },
+      );
+      // Privé : la redirection porte une signature, elle n'a rien à faire dans
+      // un cache partagé. Bornée sous le TTL pour ne jamais rejouer une URL
+      // expirée.
+      res.set("Cache-Control", "private, max-age=600");
+      return res.redirect(302, url);
     } catch (error) {
       return next(error);
     }

@@ -3,9 +3,11 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 const h = vi.hoisted(() => ({
   send: vi.fn().mockResolvedValue({}),
   get: vi.fn(),
+  sign: vi.fn(),
 }));
 
 vi.mock("axios", () => ({ default: { get: h.get } }));
+vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: h.sign }));
 vi.mock("../../../app/s3.js", () => ({
   s3Client: { send: h.send },
   s3Bucket: "test-bucket",
@@ -37,10 +39,11 @@ const REGION = "eu-west-3";
 const PREFIX = `https://test-bucket.s3.${REGION}.amazonaws.com/`;
 
 function mockRes() {
-  const res = { statusCode: 200, body: null };
+  const res = { statusCode: 200, body: null, headers: {}, redirectedTo: null };
   res.status = (c) => ((res.statusCode = c), res);
   res.json = (p) => ((res.body = p), res);
-  res.set = () => res;
+  res.set = (k, v) => ((res.headers[k] = v), res);
+  res.redirect = (c, url) => ((res.statusCode = c), (res.redirectedTo = url), res);
   return res;
 }
 function run(handler, req) {
@@ -189,6 +192,55 @@ describe("placeController uploads", () => {
   it("uploadMementoPhoto 400 when no file is provided", async () => {
     const { res } = await run(placeController.uploadMementoPhoto, { auth });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("placeController.getCover (bucket privé)", () => {
+  beforeEach(() => {
+    h.sign.mockResolvedValue("https://test-bucket.s3.amazonaws.com/k.jpg?X-Amz-Signature=abc");
+  });
+
+  it("redirige vers l'URL présignée pour une clé de photo", async () => {
+    const { res } = await run(placeController.getCover, {
+      query: { key: "place-covers/abc_u1.jpg" },
+    });
+    expect(res.statusCode).toBe(302);
+    expect(res.redirectedTo).toContain("X-Amz-Signature");
+    // Une URL signée n'a rien à faire dans un cache partagé.
+    expect(res.headers["Cache-Control"]).toContain("private");
+    expect(h.sign).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepte les trois préfixes publiés par l'app", async () => {
+    for (const key of ["place-covers/a.jpg", "memento-photos/b.jpg", "place-photos/c.jpg"]) {
+      const { res } = await run(placeController.getCover, { query: { key } });
+      expect(res.statusCode).toBe(302);
+    }
+  });
+
+  it("400 pour une clé hors des préfixes photos (le bucket sert aussi à autre chose)", async () => {
+    const { res } = await run(placeController.getCover, {
+      query: { key: "backups/db-dump.sql" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(h.sign).not.toHaveBeenCalled();
+  });
+
+  it("400 pour une clé qui tente de remonter l'arborescence", async () => {
+    const { res } = await run(placeController.getCover, {
+      query: { key: "place-covers/../backups/db-dump.sql" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(h.sign).not.toHaveBeenCalled();
+  });
+
+  it("transmet une erreur de signature à next()", async () => {
+    h.sign.mockRejectedValue(new Error("s3 down"));
+    const { err } = await run(placeController.getCover, {
+      query: { key: "place-covers/a.jpg" },
+    });
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe("s3 down");
   });
 });
 

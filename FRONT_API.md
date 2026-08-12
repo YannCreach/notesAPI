@@ -12,7 +12,7 @@ Le frontend mobile communique avec **deux backends** :
 ## Base
 
 - Base URL: `http://localhost:<SERVER_PORT>` where `SERVER_PORT` is defined in `.env`.
-- Auth: All routes (except `/health` and `/placephoto`) require `Authorization: Bearer <JWT Supabase>`.
+- Auth: All routes (except `/health`, `/placephoto` and `/cover`) require `Authorization: Bearer <JWT Supabase>`.
 - CORS: configure via `ALLOWED_ORIGINS` in `.env`. **En production, l'API refuse de démarrer si `ALLOWED_ORIGINS` est absent** (pas de fallback `*`).
 
 ## Rate limiting
@@ -20,7 +20,7 @@ Le frontend mobile communique avec **deux backends** :
 Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "rate_limited" } }` en cas de dépassement) :
 
 - **Global** : 300 requêtes / 15 min / IP.
-- **`GET /placephoto`** (public) : 30 / min / IP.
+- **`GET /placephoto`** et **`GET /cover`** (publics) : 30 / min / IP.
 - **Proxys Google** (`/googleautocomplete`, `/getplacedetails`, `/placefromapi`) : 60 / min / utilisateur.
 - **`POST /addfriend`** : 20 / heure / utilisateur (anti-spam email).
 
@@ -68,6 +68,17 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
     - `maxwidth` number (optional, default 800)
   - Response `200`: image binary (streamed), `Content-Type` set by Google (e.g. `image/jpeg`)
   - Cache: `Cache-Control: public, max-age=86400` (24h)
+
+### Cover S3 (bucket privé)
+
+- `GET /cover`
+  - Auth: **none** (public comme `/placephoto`, utilisable en `<Image src=...>`), rate limit photo (30 / min / IP)
+  - Query:
+    - `key` string (required) — clé S3 de l'objet, telle qu'elle apparaît dans l'URL renvoyée par `/uploadplacecover`, `/uploadmementophoto` ou `/uploadplacephoto`
+  - Response `302`: redirection vers une URL S3 **présignée** valable 15 min ; l'image se télécharge en direct depuis S3, sans transiter par la fonction
+  - Response `400`: clé hors des préfixes `place-covers/`, `memento-photos/`, `place-photos/` — le bucket n'héberge pas que des photos
+  - Cache: `Cache-Control: private, max-age=600`
+  - Pourquoi : le bucket n'autorise pas la lecture anonyme, les URLs stockées en base répondaient `403`. Côté app la réécriture se fait à l'affichage ([src/utils/coverUri.js](../notesMobile/src/utils/coverUri.js)), pas en base : rien à migrer.
 
 ### Place from API (Google + category lookup)
 
