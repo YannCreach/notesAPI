@@ -30,7 +30,7 @@ async function deleteS3FromUrl(url) {
 
 class placeController {
   static async getLocationAutoComplete(req, res, next) {
-    const { location, lat, lng, types } = req.query;
+    const { location, lat, lng, types, sessiontoken } = req.query;
     const url = "https://maps.googleapis.com/maps/api/place/autocomplete/json";
     const params = {
       input: location,
@@ -43,36 +43,34 @@ class placeController {
       params.location = `${lat},${lng}`;
       params.radius = 5000;
     }
+    // Toutes les frappes d'une même saisie partagent ce jeton ; si la saisie se
+    // termine par un Place Details portant le même, Google ne facture que ce
+    // dernier appel. Sans jeton, chaque frappe est facturée à l'unité.
+    if (sessiontoken) params.sessiontoken = sessiontoken;
 
     try {
       const response = await axios.get(url, { params });
 
-      const detailsUrl =
-        "https://maps.googleapis.com/maps/api/place/details/json";
-      const formattedPredictions = await Promise.all(
-        response.data.predictions.map(async (prediction) => {
+      // Pas de Place Details par prédiction ici : ça facturait un appel par
+      // ligne de la liste — jusqu'à six appels Google pour une seule frappe
+      // débouncée — afin d'obtenir des coordonnées que le client refetche de
+      // toute façon à la sélection (/getplacedetails pour AddPlace,
+      // /placefromapi pour la barre de recherche). Les prédictions sortent donc
+      // sans `location` ; le classement retombe sur la pertinence Google, déjà
+      // biaisée par le couple location/radius envoyé ci-dessus.
+      const formattedPredictions = (response.data.predictions || []).map(
+        (prediction) => {
           const { main_text, secondary_text, main_text_matched_substrings } =
             prediction.structured_formatting;
-
-          const detailsResponse = await axios.get(detailsUrl, {
-            params: {
-              place_id: prediction.place_id,
-              fields: "geometry/location",
-              key: googleApiKey,
-            },
-          });
-          const location =
-            detailsResponse.data.result?.geometry?.location ?? null;
 
           return {
             main_text,
             secondary_text,
             place_id: prediction.place_id,
             main_text_matched_substrings,
-            location,
             types: prediction.types || [],
           };
-        }),
+        },
       );
       res.status(200).json(formattedPredictions);
     } catch (error) {
@@ -94,12 +92,15 @@ class placeController {
   }
 
   static async getPlaceDetails(req, res, next) {
-    const { place_id } = req.query;
+    const { place_id, sessiontoken } = req.query;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
       key: googleApiKey,
     };
+    // Clôt la session d'autocomplétion ouverte par le client : c'est ce qui
+    // rend les frappes précédentes gratuites.
+    if (sessiontoken) params.sessiontoken = sessiontoken;
 
     try {
       const response = await axios.get(url, { params });
@@ -358,13 +359,15 @@ class placeController {
   }
 
   static async placeFromApiById(req, res, next) {
-    const place_id = req.query.place_id;
+    const { place_id, sessiontoken } = req.query;
     const url = "https://maps.googleapis.com/maps/api/place/details/json";
     const params = {
       place_id: place_id,
       key: googleApiKey,
       language: "fr",
     };
+    // Même rôle que dans getPlaceDetails : clôt la session d'autocomplétion.
+    if (sessiontoken) params.sessiontoken = sessiontoken;
 
     try {
       const googleData = await axios.get(url, { params });
