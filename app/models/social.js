@@ -78,11 +78,27 @@ class Social {
   static async getFriends(userId) {
     const { data, error } = await supabase
       .from("friends")
-      .select("friend_id, created_at")
+      .select("friend_id, created_at, nickname")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
+  }
+
+  /**
+   * Surnom local. N'écrit que la ligne dont l'appelant est propriétaire, donc
+   * l'autre côté de l'amitié n'est jamais touché — et l'autre n'a aucun moyen
+   * de savoir comment vous l'avez enregistré. `null` efface le surnom.
+   */
+  static async setFriendNickname(userId, friendId, nickname) {
+    const { data, error } = await supabase
+      .from("friends")
+      .update({ nickname })
+      .eq("user_id", userId)
+      .eq("friend_id", friendId)
+      .select("friend_id");
+    if (error) throw new Error(error.message);
+    return (data || []).length > 0;
   }
 
   static async removeFriend(userId, friendId) {

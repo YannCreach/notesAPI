@@ -99,6 +99,27 @@ class socialController {
     }
   }
 
+  // PATCH /friendnickname
+  static async setFriendNickname(req, res, next) {
+    try {
+      const raw = req.body?.nickname;
+      // Une chaîne vide vaut effacement : le champ redevient `null` et l'app
+      // retombe sur le nom du compte, puis sur l'email.
+      const nickname = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+      const updated = await Social.setFriendNickname(
+        req.auth.payload.sub,
+        req.query.id,
+        nickname,
+      );
+      if (!updated) {
+        throw new ApiError(404, "not_found", "Friendship not found");
+      }
+      res.status(200).json({ id: req.query.id, nickname });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   // POST /pushtoken
   static async savePushToken(req, res, next) {
     try {
@@ -145,7 +166,10 @@ class socialController {
         return {
           id: row.friend_id,
           email: user?.email || null,
+          // `name` est le nom que l'ami s'est donné ; `nickname` celui que vous
+          // lui avez donné. L'app affiche le second s'il existe.
           name: user?.name || null,
+          nickname: row.nickname || null,
           created_at: row.created_at,
         };
       });

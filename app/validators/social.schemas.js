@@ -23,6 +23,11 @@ export const FriendIdQuerySchema = z.object({
   id: z.string().min(1),
 });
 
+// Surnom : borné, et une chaîne vide vaut effacement (traité côté contrôleur).
+export const FriendNicknameBodySchema = z.object({
+  nickname: z.string().max(60).nullable().optional(),
+});
+
 export const FriendPlacesQuerySchema = z.object({
   userId: z.string().min(1),
 });

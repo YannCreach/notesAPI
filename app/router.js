@@ -16,6 +16,7 @@ import {
   AddFriendBodySchema,
   RequestIdQuerySchema,
   FriendIdQuerySchema,
+  FriendNicknameBodySchema,
   FriendPlacesQuerySchema,
   FriendNotesQuerySchema,
   PushTokenBodySchema,
@@ -130,6 +131,12 @@ router.delete(
   "/declinefriend",
   validate(RequestIdQuerySchema, "query"),
   socialController.declineFriend,
+);
+router.patch(
+  "/friendnickname",
+  validate(FriendIdQuerySchema, "query"),
+  validate(FriendNicknameBodySchema, "body"),
+  socialController.setFriendNickname,
 );
 router.delete(
   "/removefriend",
