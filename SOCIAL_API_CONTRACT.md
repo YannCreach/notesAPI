@@ -324,6 +324,8 @@ Retourne les lieux d'un ami.
     "latitude": 48.8566,
     "longitude": 2.3522,
     "category_id": 5,
+    "category_label": "Restaurant",
+    "category_icon": "utensils",
     "created_at": "2025-06-15T14:00:00Z"
   }
 ]
@@ -342,13 +344,59 @@ Champs importants :
 - `favorite` — boolean
 - `notes_count` — nombre de mémentos (integer)
 - `latitude`, `longitude` — coordonnées GPS (optionnel)
-- `category_id` — id de la catégorie (optionnel)
+- `category_id` — id de la catégorie **chez l'ami** (inexploitable par le front)
+- `category_label`, `category_icon` — la catégorie de l'ami, jointe au lieu
+
+Les `category_id` sont propres à chaque compte : celui d'un ami ne désigne rien chez vous et pointerait par hasard sur une de vos catégories. Le libellé et l'icône voyagent donc avec le lieu, et le front les affiche tels quels sans rien résoudre.
 
 Retourne un tableau vide `[]` si l'ami n'a pas de lieux.
 
 ---
 
-### 8. `GET /friendnotes?placeId=<place_id>&userId=<friend_user_id>`
+### 8. `GET /friendsplaces`
+
+Retourne les lieux géolocalisés de **tous** vos amis, pour les pins de la carte d'accueil.
+
+**Aucun paramètre** : la liste d'amis est lue côté serveur depuis le JWT. Le client ne peut donc pas demander les lieux de quelqu'un dont il n'est pas l'ami — contrairement à `/friendplaces`, qui doit le vérifier à chaque appel.
+
+**Logique :**
+
+1. Récupérer le `user_id` courant depuis le token
+2. Lire ses amis (`friends.user_id = current_user`) — sans ami, répondre `[]`
+3. Une seule requête `place` avec `user_id IN (amis)`, en écartant les lignes sans `latitude`/`longitude` (elles ne peuvent pas être posées sur la carte)
+4. Joindre le surnom local (`friends.nickname`) puis le nom du compte pour renseigner `owner_name`
+
+**Réponse succès (200) :**
+
+```json
+[
+  {
+    "id": 123,
+    "name": "Le Café du Coin",
+    "address": "12 rue de la Paix, Paris",
+    "city": "Paris",
+    "rating": 4.5,
+    "cover": "https://...",
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "user_id": "uuid-ami",
+    "owner_id": "uuid-ami",
+    "owner_name": "Marie",
+    "category_label": "Restaurant",
+    "category_icon": "utensils"
+  }
+]
+```
+
+`owner_name` suit la même règle d'affichage que la liste d'amis : le surnom que vous lui avez donné, sinon le nom du compte, sinon son email. Il voyage avec le lieu pour que la carte n'ait pas à faire un appel par pin.
+
+`category_label` et `category_icon` sont la catégorie **de l'ami**, jointe au lieu : son `category_id` ne désigne rien chez vous. C'est cette icône que porte le pin.
+
+Retourne un tableau vide `[]` si aucun ami, ou si aucun de leurs lieux n'a de coordonnées.
+
+---
+
+### 9. `GET /friendnotes?placeId=<place_id>&userId=<friend_user_id>`
 
 Retourne les mémentos (notes) d'un lieu d'un ami.
 
@@ -412,6 +460,7 @@ Retourne un tableau vide `[]` si la place n'a pas de mémentos.
 | `DELETE` | `/declinefriend?id=<request_id>`      | Décliner une demande               |
 | `DELETE` | `/removefriend?id=<friend_user_id>`   | Retirer un ami                     |
 | `GET`    | `/friendplaces?userId=<user_id>`      | Lieux d'un ami                     |
+| `GET`    | `/friendsplaces`                      | Lieux de tous les amis (carte)     |
 | `GET`    | `/friendnotes?placeId=...&userId=...` | Mémentos d'un lieu d'un ami        |
 
 ## Flux utilisateur
@@ -427,6 +476,7 @@ Retourne un tableau vide `[]` si la place n'a pas de mémentos.
 
 ### Consultation des lieux d'un ami
 
+0. Sur l'accueil, la carte charge `GET /friendsplaces` : les lieux des amis apparaissent en violet, à côté des vôtres en vert, et se masquent depuis le menu filtre. Un tap ouvre la fiche en lecture seule.
 1. User A va sur l'écran Social → `GET /friends` + `GET /friendrequests`
 2. Tap sur un ami → écran FriendProfile → `GET /friendplaces?userId=xxx`
 3. Tap sur un lieu → PlaceDetails en mode lecture seule → `GET /friendnotes?placeId=xxx&userId=xxx`

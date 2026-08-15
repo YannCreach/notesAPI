@@ -1,5 +1,20 @@
 import { supabaseAdmin as supabase } from "../database.js";
 
+/**
+ * Les `category_id` sont propres à chaque compte : celui d'un ami ne désigne
+ * rien chez vous, et pointerait par hasard sur une de vos catégories. Le lieu
+ * voyage donc avec le libellé et l'icône de sa propre catégorie, et on retire
+ * l'objet imbriqué que PostgREST renvoie.
+ */
+function flattenCategory(place) {
+  const { category, ...rest } = place;
+  return {
+    ...rest,
+    category_label: category?.label ?? null,
+    category_icon: category?.icon ?? null,
+  };
+}
+
 class Social {
   // --- Friend requests ---
 
@@ -86,6 +101,27 @@ class Social {
   }
 
   /**
+   * Les lieux de plusieurs amis en une requête. L'accueil affiche les pins de
+   * tout le monde : les chercher un ami à la fois ferait autant d'allers-retours
+   * que d'amis au lancement de l'écran.
+   *
+   * `user_id` est renvoyé pour pouvoir attribuer chaque lieu à son propriétaire.
+   */
+  static async getPlacesForFriends(friendIds) {
+    if (!friendIds.length) return [];
+    const { data, error } = await supabase
+      .from("place")
+      .select(
+        "id, name, address, city, latitude, longitude, cover, rating, user_id, category:category_id(label, icon)",
+      )
+      .in("user_id", friendIds)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null);
+    if (error) throw new Error(error.message);
+    return (data || []).map(flattenCategory);
+  }
+
+  /**
    * Surnom local. N'écrit que la ligne dont l'appelant est propriétaire, donc
    * l'autre côté de l'amitié n'est jamais touché — et l'autre n'a aucun moyen
    * de savoir comment vous l'avez enregistré. `null` efface le surnom.
@@ -120,14 +156,14 @@ class Social {
     const { data, error } = await supabase
       .from("place")
       .select(
-        "id, name, address, city, latitude, longitude, cover, rating, favorite, category_id, created_at, updated_at, notes_count:note(count)",
+        "id, name, address, city, latitude, longitude, cover, rating, favorite, category_id, created_at, updated_at, notes_count:note(count), category:category_id(label, icon)",
       )
       .eq("user_id", friendUserId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     // Flatten the notes_count from [{count: N}] to N
     return (data || []).map((place) => ({
-      ...place,
+      ...flattenCategory(place),
       notes_count: place.notes_count?.[0]?.count ?? 0,
     }));
   }

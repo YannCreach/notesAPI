@@ -132,6 +132,8 @@ router.delete(
   validate(RequestIdQuerySchema, "query"),
   socialController.declineFriend,
 );
+// Sans paramètre : la liste d'amis vient du JWT, pas du client.
+router.get("/friendsplaces", socialController.getAllFriendsPlaces);
 router.patch(
   "/friendnickname",
   validate(FriendIdQuerySchema, "query"),

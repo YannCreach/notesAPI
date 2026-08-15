@@ -289,6 +289,45 @@ class socialController {
     }
   }
 
+  /**
+   * GET /friendsplaces — les lieux géolocalisés de **tous** vos amis, pour les
+   * afficher sur la carte d'accueil.
+   *
+   * Aucun paramètre : la liste d'amis est lue côté serveur depuis le JWT. Le
+   * client ne peut donc pas demander les lieux de quelqu'un dont il n'est pas
+   * l'ami, contrairement à `/friendplaces` qui doit le vérifier à chaque appel.
+   */
+  static async getAllFriendsPlaces(req, res, next) {
+    try {
+      const userId = req.auth.payload.sub;
+      const friendRows = await Social.getFriends(userId);
+      const friendIds = friendRows.map((row) => row.friend_id);
+      if (!friendIds.length) return res.status(200).json([]);
+
+      const [places, { data: users, error: usersError }] = await Promise.all([
+        Social.getPlacesForFriends(friendIds),
+        supabaseAdmin.rpc("get_users_by_ids", { p_ids: friendIds }),
+      ]);
+      if (usersError) throw new Error(usersError.message);
+
+      // Le surnom que vous leur avez donné voyage avec le lieu : la carte doit
+      // pouvoir dire « chez Marie » sans refaire un appel par pin.
+      const nameById = new Map();
+      const nicknameById = new Map(friendRows.map((r) => [r.friend_id, r.nickname || null]));
+      (users || []).forEach((u) => nameById.set(u.id, u.name || u.email || null));
+
+      res.status(200).json(
+        places.map((p) => ({
+          ...p,
+          owner_id: p.user_id,
+          owner_name: nicknameById.get(p.user_id) || nameById.get(p.user_id) || null,
+        })),
+      );
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   // GET /friendnotes?placeId=<place_id>&userId=<friend_user_id>
   static async getFriendNotes(req, res, next) {
     try {
