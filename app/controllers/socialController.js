@@ -1,6 +1,11 @@
 import Social from "../models/social.js";
 import { supabaseAdmin } from "../database.js";
 import { sendFriendRequestEmail, sendInvitationEmail } from "../services/email.js";
+import {
+  registerPushToken,
+  sendPushToUser,
+  unregisterPushToken,
+} from "../services/push.js";
 import { ApiError } from "../middleware/errorHandler.js";
 
 class socialController {
@@ -57,6 +62,15 @@ class socialController {
         sendFriendRequestEmail(email, userName, userEmail).catch((err) =>
           console.error("[email] Failed to send friend request email:", err),
         );
+
+        // Push, même règle que l'email : une notification perdue ne doit jamais
+        // faire échouer la demande d'ami. `data.type` permet à l'app d'ouvrir
+        // directement l'écran Social quand on tape la notification.
+        sendPushToUser(targetId, {
+          title: "Nouvelle demande d'ami",
+          body: `${userName || userEmail} souhaite vous ajouter`,
+          data: { type: "friend_request" },
+        }).catch((err) => console.error("[push] Friend request:", err));
       } else {
         // Cas B — Pas de compte : envoyer une invitation
         const existingInvitation = await Social.findPendingInvitation(
@@ -80,6 +94,27 @@ class socialController {
 
       // Always return 200 — never reveal whether the account exists
       res.status(200).json({ message: "Friend request sent" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // POST /pushtoken
+  static async savePushToken(req, res, next) {
+    try {
+      const { token, platform } = req.body;
+      await registerPushToken(req.auth.payload.sub, token, platform);
+      res.status(204).end();
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // DELETE /pushtoken
+  static async deletePushToken(req, res, next) {
+    try {
+      await unregisterPushToken(req.auth.payload.sub, req.body.token);
+      res.status(204).end();
     } catch (error) {
       return next(error);
     }

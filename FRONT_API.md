@@ -40,8 +40,27 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
     - `lat` number (optional)
     - `lng` number (optional)
     - `types` string (optional)
-  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings, location }>`
-  - `location`: `{ lat: number, lng: number } | null` — coordonnées obtenues via Place Details
+    - `sessiontoken` UUID (optional) — voir « Jeton de session » ci-dessous
+  - Response `200`: `Array<{ main_text, secondary_text, place_id, main_text_matched_substrings, types }>`
+  - **Aucune coordonnée dans la réponse.** Les résoudre ici demandait un Place
+    Details **par ligne** de la liste, soit jusqu'à six appels facturés pour une
+    seule frappe débouncée. Le client obtient les coordonnées à la sélection, en
+    un seul appel à `/getplacedetails` ou `/placefromapi`.
+
+### Jeton de session
+
+Google facture chaque autocomplétion à l'unité, sauf si toutes celles d'une même
+saisie portent le même `sessiontoken` **et** que la saisie se termine par un
+Place Details portant ce même jeton — la facture se réduit alors à ce seul
+Details.
+
+Le jeton est un UUID produit par le client, valable pour une saisie, de la
+première frappe à la sélection. Il est accepté par `/googleautocomplete`,
+`/getplacedetails` et `/placefromapi`, validé en UUID côté API, et relayé tel
+quel à Google. L'omettre reste licite : on retombe simplement sur la
+facturation à l'unité.
+
+Côté app : [src/services/googlePlacesSession.js](../notesMobile/src/services/googlePlacesSession.js).
 
 ### Existing Autocomplete (DB)
 
@@ -57,6 +76,7 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
 - `GET /getplacedetails`
   - Query:
     - `place_id` string (required)
+    - `sessiontoken` UUID (optional) — clôt la session ouverte par les autocomplétions
   - Response `200`: Google Place Details result (raw)
 
 ### Place Photo (Google proxy)
@@ -85,6 +105,7 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
 - `GET /placefromapi`
   - Query:
     - `place_id` string (required)
+    - `sessiontoken` UUID (optional) — clôt la session ouverte par les autocomplétions
   - Response `200`: formatted Google Place Details with `category_id` resolved from user's categories
 
 ```ts
@@ -177,6 +198,28 @@ Toutes les routes sont soumises à des limites (réponse `429 { error: { code: "
   - Response `200`: `{ deleted: true }`
   - Response `500`: `{ error: { code: "account_deletion_failed" } }` — les données ont été supprimées mais l'utilisateur Auth subsiste ; l'appel peut être rejoué
   - **Irréversible.** Supprime les photos S3, les lieux, mementos, catégories, tags, préférences, les liens sociaux dans les deux sens, puis l'utilisateur Supabase Auth. Le client doit ensuite se déconnecter et effacer sa base locale.
+
+## Notifications push
+
+Le jeton est enregistré à la connexion et retiré à la déconnexion : sans ça, les
+notifications d'un compte continueraient d'arriver sur un appareil passé à
+quelqu'un d'autre. La clé de la table est le **jeton**, pas l'utilisateur — un
+compte peut avoir plusieurs appareils, et un appareil peut changer de compte.
+
+- `POST /pushtoken`
+  - Body: `{ token: string, platform: "ios" | "android" | "web" }`
+  - `token` doit être un jeton Expo (`ExponentPushToken[…]`), validé côté API
+  - Response `204`
+- `DELETE /pushtoken`
+  - Body: `{ token: string }`
+  - Ne supprime que si le jeton appartient à l'appelant
+  - Response `204`
+
+Les envois partent en « fire-and-forget » : une notification perdue ne fait jamais
+échouer l'action qui l'a déclenchée — même règle que les emails. Un seul
+déclencheur aujourd'hui, la demande d'ami (`data.type = "friend_request"` ;
+l'app ouvre l'écran Social au tap). Expo répond `DeviceNotRegistered` pour une
+app désinstallée : le jeton est alors purgé de la table.
 
 ## Error Format
 

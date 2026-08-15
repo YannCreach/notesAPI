@@ -18,6 +18,8 @@ import {
   FriendIdQuerySchema,
   FriendPlacesQuerySchema,
   FriendNotesQuerySchema,
+  PushTokenBodySchema,
+  PushTokenDeleteBodySchema,
 } from "./validators/social.schemas.js";
 import {
   addFriendLimiter,
@@ -102,6 +104,21 @@ router.post(
   validate(AddFriendBodySchema, "body"),
   socialController.addFriend,
 );
+// --- Notifications push ---
+// L'appareil enregistre son jeton après connexion, et le retire à la
+// déconnexion : sans ça les notifications d'un compte continueraient d'arriver
+// sur un appareil passé à quelqu'un d'autre.
+router.post(
+  "/pushtoken",
+  validate(PushTokenBodySchema, "body"),
+  socialController.savePushToken,
+);
+router.delete(
+  "/pushtoken",
+  validate(PushTokenDeleteBodySchema, "body"),
+  socialController.deletePushToken,
+);
+
 router.get("/friends", socialController.getFriends);
 router.get("/friendrequests", socialController.getFriendRequests);
 router.patch(
