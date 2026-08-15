@@ -312,24 +312,28 @@ describe("placeController Google proxies", () => {
     expect(res.body.category_id).toBeNull();
   });
 
-  it("getLocationAutoComplete formats predictions with resolved geometry", async () => {
-    h.get
-      .mockResolvedValueOnce({
-        data: {
-          predictions: [
-            {
-              place_id: "p1",
-              types: ["cafe"],
-              structured_formatting: {
-                main_text: "A",
-                secondary_text: "B",
-                main_text_matched_substrings: [],
-              },
+  /**
+   * L'autocomplétion ne résout plus la géométrie de chaque prédiction : c'était
+   * un Place Details par suggestion, facturé, pour des coordonnées qui ne
+   * servaient qu'à celle qu'on finit par choisir. Le front les demande à la
+   * sélection, dans la même session de facturation.
+   */
+  it("getLocationAutoComplete formats predictions without fanning out to Place Details", async () => {
+    h.get.mockResolvedValueOnce({
+      data: {
+        predictions: [
+          {
+            place_id: "p1",
+            types: ["cafe"],
+            structured_formatting: {
+              main_text: "A",
+              secondary_text: "B",
+              main_text_matched_substrings: [],
             },
-          ],
-        },
-      })
-      .mockResolvedValueOnce({ data: { result: { geometry: { location: { lat: 1, lng: 2 } } } } });
+          },
+        ],
+      },
+    });
 
     const { res } = await run(placeController.getLocationAutoComplete, {
       auth,
@@ -339,6 +343,6 @@ describe("placeController Google proxies", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body[0].main_text).toBe("A");
     expect(res.body[0].place_id).toBe("p1");
-    expect(res.body[0].location).toEqual({ lat: 1, lng: 2 });
+    expect(h.get).toHaveBeenCalledTimes(1);
   });
 });

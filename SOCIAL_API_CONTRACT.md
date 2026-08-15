@@ -410,7 +410,7 @@ Retourne les mémentos (notes) d'un lieu d'un ami.
 1. Récupérer le `user_id` courant depuis le token
 2. Vérifier que `userId` est bien un ami de `current_user`
 3. Vérifier que la place `placeId` appartient bien à `userId`
-4. Retourner toutes les `notes` (mémentos) de cette place
+4. Retourner toutes les `notes` (mémentos) de cette place, chacune étiquetée de son propriétaire
 
 **Réponse succès (200) :**
 
@@ -425,11 +425,15 @@ Retourne les mémentos (notes) d'un lieu d'un ami.
     "rating": 4,
     "cover": "https://...",
     "favorite": false,
+    "owner_id": "uuid-ami",
+    "owner_name": "Marie",
     "created_at": "2025-07-01T09:30:00Z",
     "updated_at": "2025-07-01T09:30:00Z"
   }
 ]
 ```
+
+`owner_name` (surnom local, sinon nom du compte, sinon email) est nécessaire sur un **lieu copié** : ces mémentos y sont mêlés à ceux de l'appelant et doivent dire de qui ils sont. Voir « Copier le lieu d'un ami » plus bas.
 
 Le format de chaque note doit être **identique** au format retourné par les endpoints existants de notes de l'app.
 
@@ -481,6 +485,14 @@ Retourne un tableau vide `[]` si la place n'a pas de mémentos.
 2. Tap sur un ami → écran FriendProfile → `GET /friendplaces?userId=xxx`
 3. Tap sur un lieu → PlaceDetails en mode lecture seule → `GET /friendnotes?placeId=xxx&userId=xxx`
 4. Aucune action d'écriture n'est possible (pas d'edit, delete, favorite, création de mémento)
+
+### Copier le lieu d'un ami
+
+1. Sur la fiche en lecture seule, « Ajouter » ouvre le formulaire d'ajout prérempli (nom, adresse, coordonnées, photo, et votre catégorie de même libellé si vous en avez une)
+2. À l'enregistrement, le lieu créé porte `origin_place_id` (l'id du lieu chez l'ami) et `origin_user_id` (son compte) — colonnes ajoutées par [db/place_origin.sql](db/place_origin.sql), et transportées par le moteur de sync
+3. **Aucun mémento n'est copié** : ils restent à lui. À chaque ouverture du lieu, l'app appelle `GET /friendnotes?placeId=<origin_place_id>&userId=<origin_user_id>` et les mêle aux vôtres, en lecture seule et différenciés par la couleur et le nom
+4. Si l'amitié cesse, l'endpoint répond `403` et ses mémentos disparaissent — le lieu, lui, reste le vôtre
+5. Le pin de l'ami s'efface de la carte au profit du vôtre
 
 ### Recherche globale
 

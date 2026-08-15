@@ -347,7 +347,22 @@ class socialController {
       }
 
       const notes = await Social.getFriendNotes(placeId, friendId);
-      res.status(200).json(notes);
+
+      // Le nom voyage avec chaque memento : sur un lieu copié, ils sont mêlés
+      // à ceux de l'appelant et doivent dire de qui ils sont. Le surnom local
+      // prime, comme partout ailleurs.
+      let ownerName = friendship.nickname || null;
+      if (!ownerName) {
+        const { data: users } = await supabaseAdmin.rpc("get_users_by_ids", {
+          p_ids: [friendId],
+        });
+        const user = (users || [])[0];
+        ownerName = user?.name || user?.email || null;
+      }
+
+      res
+        .status(200)
+        .json(notes.map((n) => ({ ...n, owner_id: friendId, owner_name: ownerName })));
     } catch (error) {
       return next(error);
     }

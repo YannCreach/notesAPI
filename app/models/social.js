@@ -74,7 +74,7 @@ class Social {
   static async findFriendship(userId, friendId) {
     const { data, error } = await supabase
       .from("friends")
-      .select("id")
+      .select("id, nickname")
       .eq("user_id", userId)
       .eq("friend_id", friendId)
       .maybeSingle();

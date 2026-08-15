@@ -247,6 +247,19 @@ describe("socialController.getFriendPlaces / getFriendNotes", () => {
       query: { placeId: "1", userId: "friend1" },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual([{ id: 10 }]);
+    // Le propriétaire voyage avec chaque memento : sur un lieu copié ils sont
+    // mêlés à ceux de l'appelant et doivent dire de qui ils sont.
+    expect(res.body).toEqual([{ id: 10, owner_id: "friend1", owner_name: null }]);
+  });
+
+  it("getFriendNotes labels the notes with the nickname you gave the friend", async () => {
+    Social.findFriendship.mockResolvedValue({ id: 1, nickname: "Marie" });
+    Social.findPlaceByIdAndUser.mockResolvedValue({ id: 1 });
+    Social.getFriendNotes.mockResolvedValue([{ id: 10 }]);
+    const { res } = await run(socialController.getFriendNotes, {
+      auth: baseAuth,
+      query: { placeId: "1", userId: "friend1" },
+    });
+    expect(res.body[0].owner_name).toBe("Marie");
   });
 });
