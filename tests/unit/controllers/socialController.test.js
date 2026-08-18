@@ -29,6 +29,9 @@ vi.mock("../../../app/models/social.js", () => ({
     deleteRequest: vi.fn().mockResolvedValue(undefined),
     removeFriend: vi.fn(),
     getFriendPlaces: vi.fn(),
+    getPlacesForFriends: vi.fn(),
+    getSharingTowards: vi.fn(),
+    setFriendSettings: vi.fn(),
     findPlaceByIdAndUser: vi.fn(),
     getFriendNotes: vi.fn(),
   },
@@ -261,5 +264,141 @@ describe("socialController.getFriendPlaces / getFriendNotes", () => {
       query: { placeId: "1", userId: "friend1" },
     });
     expect(res.body[0].owner_name).toBe("Marie");
+  });
+});
+
+describe("socialController — partage des lieux entre amis", () => {
+  it("getFriendPlaces 403 quand l'ami a coupé le partage", async () => {
+    Social.findFriendship
+      // Ma ligne : l'amitié existe bien.
+      .mockResolvedValueOnce({ id: 1 })
+      // La sienne, celle qui porte sa décision à mon égard.
+      .mockResolvedValueOnce({ id: 2, share_places: false });
+    const { err } = await run(socialController.getFriendPlaces, {
+      auth: baseAuth,
+      query: { userId: "friend1" },
+    });
+    expect(err?.statusCode).toBe(403);
+    expect(err?.code).toBe("not_shared");
+    expect(Social.getFriendPlaces).not.toHaveBeenCalled();
+  });
+
+  it("getFriendNotes 403 quand l'ami a coupé le partage", async () => {
+    Social.findFriendship
+      .mockResolvedValueOnce({ id: 1 })
+      .mockResolvedValueOnce({ id: 2, share_places: false });
+    const { err } = await run(socialController.getFriendNotes, {
+      auth: baseAuth,
+      query: { placeId: "1", userId: "friend1" },
+    });
+    expect(err?.statusCode).toBe(403);
+    expect(Social.getFriendNotes).not.toHaveBeenCalled();
+  });
+
+  it("une base pas encore migrée se comporte comme avant", async () => {
+    // Colonne absente = `undefined`, et non `false` : le partage reste ouvert.
+    Social.findFriendship.mockResolvedValue({ id: 1 });
+    Social.getFriendPlaces.mockResolvedValue([{ id: 1 }]);
+    const { res, err } = await run(socialController.getFriendPlaces, {
+      auth: baseAuth,
+      query: { userId: "friend1" },
+    });
+    expect(err).toBeNull();
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("getAllFriendsPlaces ne garde que les amis affichés qui partagent aussi", async () => {
+    Social.getFriends.mockResolvedValue([
+      { friend_id: "visible", nickname: "Marie", show_places: true },
+      { friend_id: "masque", nickname: null, show_places: false },
+      { friend_id: "discret", nickname: null, show_places: true },
+    ]);
+    Social.getSharingTowards.mockResolvedValue([
+      { user_id: "visible", share_places: true },
+      { user_id: "masque", share_places: true },
+      { user_id: "discret", share_places: false },
+    ]);
+    Social.getPlacesForFriends.mockResolvedValue([{ id: 1, user_id: "visible" }]);
+    h.rpc.mockResolvedValue({ data: [{ id: "visible", name: "Compte" }], error: null });
+
+    const { res } = await run(socialController.getAllFriendsPlaces, { auth: baseAuth });
+
+    // `masque` est ma décision, `discret` la sienne : les deux disparaissent.
+    expect(Social.getPlacesForFriends).toHaveBeenCalledWith(["visible"]);
+    // Et le surnom que je lui ai donné prime sur le nom de son compte.
+    expect(res.body).toEqual([
+      { id: 1, user_id: "visible", owner_id: "visible", owner_name: "Marie" },
+    ]);
+  });
+
+  it("getAllFriendsPlaces répond [] sans interroger les lieux quand tout est coupé", async () => {
+    Social.getFriends.mockResolvedValue([
+      { friend_id: "discret", show_places: true },
+    ]);
+    Social.getSharingTowards.mockResolvedValue([
+      { user_id: "discret", share_places: false },
+    ]);
+    const { res } = await run(socialController.getAllFriendsPlaces, { auth: baseAuth });
+    expect(res.body).toEqual([]);
+    expect(Social.getPlacesForFriends).not.toHaveBeenCalled();
+  });
+
+  it("setFriendSettings 400 quand le corps ne change rien", async () => {
+    const { err } = await run(socialController.setFriendSettings, {
+      auth: baseAuth,
+      query: { id: "friend1" },
+      body: {},
+    });
+    expect(err?.statusCode).toBe(400);
+    expect(Social.setFriendSettings).not.toHaveBeenCalled();
+  });
+
+  it("setFriendSettings n'écrit que le drapeau envoyé", async () => {
+    Social.setFriendSettings.mockResolvedValue({
+      show_places: true,
+      share_places: false,
+    });
+    const { res } = await run(socialController.setFriendSettings, {
+      auth: baseAuth,
+      query: { id: "friend1" },
+      body: { share_places: false },
+    });
+    // `show_places` n'était pas dans le corps : il ne doit pas être réécrit.
+    expect(Social.setFriendSettings).toHaveBeenCalledWith("u1", "friend1", {
+      share_places: false,
+    });
+    expect(res.body).toEqual({
+      id: "friend1",
+      show_places: true,
+      share_places: false,
+    });
+  });
+
+  /**
+   * Le filtre `is_private` vit dans les requêtes du modèle, pas dans le
+   * contrôleur : ces cas-là verrouillent le contrat vu du contrôleur — un lieu
+   * privé se comporte comme un lieu qui n'existe pas.
+   */
+  it("getFriendNotes 404 sur un lieu privé, sans révéler qu'il existe", async () => {
+    Social.findFriendship.mockResolvedValue({ id: 1 });
+    // Le modèle écarte les lignes privées : la recherche ne renvoie rien.
+    Social.findPlaceByIdAndUser.mockResolvedValue(null);
+    const { err } = await run(socialController.getFriendNotes, {
+      auth: baseAuth,
+      query: { placeId: "1", userId: "friend1" },
+    });
+    expect(err?.statusCode).toBe(404);
+    expect(err?.code).toBe("place_not_found");
+    expect(Social.getFriendNotes).not.toHaveBeenCalled();
+  });
+
+  it("setFriendSettings 404 quand l'amitié n'existe pas", async () => {
+    Social.setFriendSettings.mockResolvedValue(null);
+    const { err } = await run(socialController.setFriendSettings, {
+      auth: baseAuth,
+      query: { id: "stranger" },
+      body: { show_places: false },
+    });
+    expect(err?.statusCode).toBe(404);
   });
 });

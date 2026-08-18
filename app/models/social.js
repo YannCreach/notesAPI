@@ -71,10 +71,19 @@ class Social {
 
   // --- Friends ---
 
+  /**
+   * La ligne `(userId → friendId)`, celle qui appartient à `userId`.
+   *
+   * Elle sert à deux choses opposées selon le sens dans lequel on l'interroge :
+   * dans le sens direct elle prouve l'amitié et porte le surnom ; dans le sens
+   * inverse — `findFriendship(ami, moi)` — elle dit si cet ami m'autorise à
+   * voir ses lieux (`share_places`), puisque c'est lui qui a écrit cette
+   * ligne-là.
+   */
   static async findFriendship(userId, friendId) {
     const { data, error } = await supabase
       .from("friends")
-      .select("id, nickname")
+      .select("id, nickname, show_places, share_places")
       .eq("user_id", userId)
       .eq("friend_id", friendId)
       .maybeSingle();
@@ -93,11 +102,42 @@ class Social {
   static async getFriends(userId) {
     const { data, error } = await supabase
       .from("friends")
-      .select("friend_id, created_at, nickname")
+      .select("friend_id, created_at, nickname, show_places, share_places")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
+  }
+
+  /**
+   * Les lignes que mes amis ont écrites **vers moi**, donc leur `share_places`
+   * à mon égard. `getFriends` ne peut pas y répondre : elle lit mes lignes à
+   * moi, où ce drapeau décrit ce que *je* partage.
+   *
+   * Une requête pour tout le monde, parce que la carte les demande d'un coup.
+   */
+  static async getSharingTowards(userId) {
+    const { data, error } = await supabase
+      .from("friends")
+      .select("user_id, share_places")
+      .eq("friend_id", userId);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  /**
+   * Réglages par ami. Comme le surnom, n'écrit que la ligne dont l'appelant est
+   * propriétaire : `share_places` se décide chez soi, jamais chez l'autre.
+   */
+  static async setFriendSettings(userId, friendId, patch) {
+    const { data, error } = await supabase
+      .from("friends")
+      .update(patch)
+      .eq("user_id", userId)
+      .eq("friend_id", friendId)
+      .select("show_places, share_places");
+    if (error) throw new Error(error.message);
+    return (data || [])[0] || null;
   }
 
   /**
@@ -115,6 +155,9 @@ class Social {
         "id, name, address, city, latitude, longitude, cover, rating, user_id, category:category_id(label, icon)",
       )
       .in("user_id", friendIds)
+      // Un lieu privé n'apparaît sur aucune carte d'ami. Le filtre est ici et
+      // non dans l'app : c'est le serveur qui décide de ce qu'il sert.
+      .eq("is_private", false)
       .not("latitude", "is", null)
       .not("longitude", "is", null);
     if (error) throw new Error(error.message);
@@ -159,6 +202,9 @@ class Social {
         "id, name, address, city, latitude, longitude, cover, rating, favorite, category_id, created_at, updated_at, notes_count:note(count), category:category_id(label, icon)",
       )
       .eq("user_id", friendUserId)
+      // Idem sur son profil : privé veut dire privé, y compris quand on vient
+      // regarder son carnet exprès.
+      .eq("is_private", false)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     // Flatten the notes_count from [{count: N}] to N
@@ -239,12 +285,22 @@ class Social {
 
   // --- Friend data (places & notes) ---
 
+  /**
+   * Le lieu d'un ami, pour autoriser la lecture de ses mementos.
+   *
+   * Les lieux privés en sont exclus : ils répondent donc « introuvable » plutôt
+   * que « interdit ». C'est volontaire — un refus explicite confirmerait à
+   * l'ami que le lieu existe, ce qui est précisément ce qu'on lui cache. Et ça
+   * couvre aussi le lieu qu'il a **copié** avant : sa copie reste la sienne,
+   * mais les mementos qu'il y lisait disparaissent.
+   */
   static async findPlaceByIdAndUser(placeId, userId) {
     const { data, error } = await supabase
       .from("place")
       .select("id")
       .eq("id", placeId)
       .eq("user_id", userId)
+      .eq("is_private", false)
       .maybeSingle();
     if (error) throw new Error(error.message);
     return data;

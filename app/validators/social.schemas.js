@@ -28,6 +28,20 @@ export const FriendNicknameBodySchema = z.object({
   nickname: z.string().max(60).nullable().optional(),
 });
 
+// Réglages par ami. Les deux sont optionnels et le client n'envoie que celui
+// qu'il vient de basculer ; en exiger au moins un évite un PATCH vide qui
+// répondrait 200 sans rien avoir changé.
+export const FriendSettingsBodySchema = z
+  .object({
+    show_places: z.boolean().optional(),
+    share_places: z.boolean().optional(),
+  })
+  .refine(
+    (body) =>
+      body.show_places !== undefined || body.share_places !== undefined,
+    { message: "missing_fields" },
+  );
+
 export const FriendPlacesQuerySchema = z.object({
   userId: z.string().min(1),
 });

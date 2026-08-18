@@ -63,16 +63,30 @@ Contrainte unique : `(from_user_id, to_user_id)` — pas de doublon de demande.
 
 ### `friends`
 
-| Colonne      | Type          | Description        |
-| ------------ | ------------- | ------------------ |
-| `id`         | uuid / serial | PK                 |
-| `user_id`    | uuid          | FK → auth.users.id |
-| `friend_id`  | uuid          | FK → auth.users.id |
-| `created_at` | timestamptz   | Date d'ajout       |
+| Colonne        | Type          | Description                                     |
+| -------------- | ------------- | ----------------------------------------------- |
+| `id`           | uuid / serial | PK                                              |
+| `user_id`      | uuid          | FK → auth.users.id                              |
+| `friend_id`    | uuid          | FK → auth.users.id                              |
+| `nickname`     | text          | Surnom local (null = pas de surnom)             |
+| `show_places`  | boolean       | Afficher **ses** lieux sur **ma** carte         |
+| `share_places` | boolean       | Partager **mes** lieux avec **lui**             |
+| `created_at`   | timestamptz   | Date d'ajout                                    |
 
 Contrainte unique : `(user_id, friend_id)`. La relation est bidirectionnelle : quand A accepte B, créer **deux** lignes `(A, B)` et `(B, A)`.
 
+Les trois colonnes de réglage vivent sur la ligne dont `user_id` est le vôtre — celle que vous possédez. `nickname` et `show_places` ne concernent que votre vue. `share_places` est d'une autre nature : c'est une **autorisation**, et elle se lit donc dans le sens inverse de celui qui l'écrit. Quand B réclame les lieux de A, le serveur consulte la ligne `(A → B)`, écrite par A. Les deux booléens sont `NOT NULL DEFAULT TRUE` (migration `20260816234413_add_friend_sharing_flags.sql`) : une amitié déjà nouée ne se referme pas au passage de la migration.
+
 ---
+
+## Lieux privés
+
+La table `place` porte `is_private BOOLEAN NOT NULL DEFAULT FALSE` (migration `20260818125513_add_place_is_private.sql`). Un lieu privé — et tous ses mémentos avec lui — n'est **jamais** servi à un ami :
+
+- `/friendsplaces` et `/friendplaces` l'excluent de leurs résultats ;
+- `/friendnotes` répond `404 place_not_found`, et non `403`. Un refus explicite confirmerait que le lieu existe, ce qui est précisément ce qu'on cache. C'est aussi ce qui coupe les mémentos qu'un ami lisait sur une **copie** faite avant que le lieu ne devienne privé : sa copie reste la sienne, votre contenu s'en retire.
+
+Le filtre est appliqué dans `app/models/social.js`, jamais dans l'app : le client transporte le drapeau via la synchro, il ne décide pas de ce que le serveur accepte de montrer. À ne pas confondre avec `friends.share_places`, qui coupe le partage avec **une personne** ; `is_private` retire **un lieu** à tout le monde.
 
 ## Endpoints
 
@@ -153,10 +167,15 @@ Retourne la liste des amis de l'utilisateur courant.
     "id": "uuid-du-friend",
     "email": "ami@example.com",
     "name": "Jean Dupont",
+    "nickname": "Jeannot",
+    "show_places": true,
+    "share_places": true,
     "created_at": "2025-12-01T10:30:00Z"
   }
 ]
 ```
+
+`nickname` est le surnom que **vous** lui avez donné (null s'il n'y en a pas) ; `name` reste le nom de son compte. `show_places` et `share_places` sont vos deux réglages pour cet ami, écrits par `PATCH /friendsettings` : ils voyagent avec la liste pour que l'écran Social n'ait pas à faire un appel de plus par ligne.
 
 Le champ `id` doit être l'`id` de l'utilisateur ami (son `user_id` dans auth.users), car le front l'utilise directement comme `userId` dans les appels suivants (`/friendplaces?userId=...`, `/friendnotes?...&userId=...`).
 
@@ -305,8 +324,9 @@ Retourne les lieux d'un ami.
 
 1. Récupérer le `user_id` courant depuis le token
 2. Vérifier que `userId` est bien un ami de `current_user` (ligne dans `friends`)
-3. Si non ami → erreur 403
-4. Retourner toutes les `places` de cet utilisateur (`places.user_id = userId`)
+3. Si non ami → erreur 403 `not_friends`
+4. Vérifier sur **sa** ligne (`userId → current_user`) qu'il n'a pas coupé `share_places` → sinon 403 `not_shared`
+5. Retourner toutes les `places` de cet utilisateur (`places.user_id = userId`)
 
 **Réponse succès (200) :**
 
@@ -363,8 +383,9 @@ Retourne les lieux géolocalisés de **tous** vos amis, pour les pins de la cart
 
 1. Récupérer le `user_id` courant depuis le token
 2. Lire ses amis (`friends.user_id = current_user`) — sans ami, répondre `[]`
-3. Une seule requête `place` avec `user_id IN (amis)`, en écartant les lignes sans `latitude`/`longitude` (elles ne peuvent pas être posées sur la carte)
-4. Joindre le surnom local (`friends.nickname`) puis le nom du compte pour renseigner `owner_name`
+3. Ne garder que les amis dont **les deux** réglages sont d'accord : `show_places` sur ma ligne (je ne l'ai pas masqué) **et** `share_places` sur la sienne (il me montre bien ses lieux). Plus personne ne reste, répondre `[]` sans interroger les lieux
+4. Une seule requête `place` avec `user_id IN (amis retenus)`, en écartant les lignes sans `latitude`/`longitude` (elles ne peuvent pas être posées sur la carte)
+5. Joindre le surnom local (`friends.nickname`) puis le nom du compte pour renseigner `owner_name`
 
 **Réponse succès (200) :**
 
@@ -409,8 +430,9 @@ Retourne les mémentos (notes) d'un lieu d'un ami.
 
 1. Récupérer le `user_id` courant depuis le token
 2. Vérifier que `userId` est bien un ami de `current_user`
-3. Vérifier que la place `placeId` appartient bien à `userId`
-4. Retourner toutes les `notes` (mémentos) de cette place, chacune étiquetée de son propriétaire
+3. Vérifier sur sa ligne qu'il n'a pas coupé `share_places` → sinon 403 `not_shared`
+4. Vérifier que la place `placeId` appartient bien à `userId`
+5. Retourner toutes les `notes` (mémentos) de cette place, chacune étiquetée de son propriétaire
 
 **Réponse succès (200) :**
 
@@ -453,6 +475,44 @@ Retourne un tableau vide `[]` si la place n'a pas de mémentos.
 
 ---
 
+### 10. Réglages par ami
+
+Trois réglages, tous portés par **votre** ligne d'amitié. Deux routes les écrivent.
+
+#### `PATCH /friendnickname?id=<friend_user_id>`
+
+**Body :** `{ "nickname": "Jeannot" }` — une chaîne vide ou `null` efface le surnom.
+
+**Réponse (200) :** `{ "id": "<friend_user_id>", "nickname": "Jeannot" }`
+
+Le surnom ne change que votre vue. L'ami n'a aucun moyen de savoir comment vous l'avez enregistré.
+
+#### `PATCH /friendsettings?id=<friend_user_id>`
+
+**Body :** au moins l'une des deux clés, jamais les deux obligatoirement.
+
+```json
+{ "show_places": true, "share_places": false }
+```
+
+- `show_places` — afficher **ses** lieux sur **ma** carte. Préférence d'affichage : elle ne filtre que `/friendsplaces`. Ouvrir son profil exprès (`/friendplaces`) continue de montrer ses lieux — masquer n'est pas se couper de lui.
+- `share_places` — partager **mes** lieux avec **lui**. Autorisation : le serveur la lit sur ma ligne quand *lui* réclame mes données, et refuse `/friendplaces` comme `/friendnotes` en `403 not_shared`.
+
+Le client n'envoie que le drapeau qu'il vient de basculer : un écran chargé avec une valeur périmée ne peut donc pas réécrire l'autre au passage.
+
+**Réponse (200) :** l'état complet après écriture.
+
+```json
+{ "id": "<friend_user_id>", "show_places": true, "share_places": false }
+```
+
+**Erreurs possibles :**
+
+- `400` — `validation_error` (corps vide : rien à changer)
+- `404` — `{ "error": { "code": "not_found", "message": "Friendship not found" } }`
+
+**Effet côté ami :** aucune notification, aucun indice. Quand le partage est coupé, ses appels renvoient `403` et le front retombe sur ses états vides — même comportement silencieux qu'une rupture d'amitié, et pour la même raison : lui annoncer le réglage reviendrait à le divulguer.
+
 ## Résumé des endpoints
 
 | Méthode  | Route                                 | Description                        |
@@ -463,6 +523,8 @@ Retourne un tableau vide `[]` si la place n'a pas de mémentos.
 | `PATCH`  | `/acceptfriend?id=<request_id>`       | Accepter une demande               |
 | `DELETE` | `/declinefriend?id=<request_id>`      | Décliner une demande               |
 | `DELETE` | `/removefriend?id=<friend_user_id>`   | Retirer un ami                     |
+| `PATCH`  | `/friendnickname?id=<friend_user_id>` | Renommer un ami (surnom local)     |
+| `PATCH`  | `/friendsettings?id=<friend_user_id>` | Afficher ses lieux / partager les miens |
 | `GET`    | `/friendplaces?userId=<user_id>`      | Lieux d'un ami                     |
 | `GET`    | `/friendsplaces`                      | Lieux de tous les amis (carte)     |
 | `GET`    | `/friendnotes?placeId=...&userId=...` | Mémentos d'un lieu d'un ami        |

@@ -50,6 +50,7 @@ Les modèles utilisent **`supabaseAdmin` (service_role) qui CONTOURNE le RLS** (
 Autres invariants :
 - `/addfriend` renvoie **toujours 200** (ne jamais révéler l'existence d'un compte). Rate-limité (anti-spam email).
 - Lookups d'utilisateurs via les RPC `get_user_id_by_email` / `get_users_by_ids` (service_role only), **jamais** `admin.listUsers()` (charge toute la table, cassé >50 users).
+- `friends.share_places` **se lit à l'envers de celui qui l'écrit**. Chaque ami écrit le drapeau sur *sa* ligne `(lui → moi)` ; pour savoir si j'ai le droit de voir ses lieux, c'est donc cette ligne-là qu'il faut interroger, pas la mienne. Lire `findFriendship(moi, lui).share_places` renverrait ce que *je* partage avec *lui* — un contrôle d'accès qui autorise exactement l'inverse de ce qu'il croit vérifier. Le helper `assertSharesWithMe(ami, moi)` est là pour qu'on n'ait pas à s'en souvenir ([app/controllers/socialController.js](app/controllers/socialController.js)).
 - Toute donnée utilisateur interpolée dans du HTML d'email doit passer par `escapeHtml()` ([app/templates/escapeHtml.js](app/templates/escapeHtml.js)).
 - Les clés Google/AWS/Resend restent **serveur only** (jamais renvoyées au client).
 - CORS : refuse de démarrer en prod si `ALLOWED_ORIGINS` absent (pas de fallback `*`).

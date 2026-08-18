@@ -8,6 +8,24 @@ import {
 } from "../services/push.js";
 import { ApiError } from "../middleware/errorHandler.js";
 
+/**
+ * L'ami `friendId` m'autorise-t-il à voir ses lieux ?
+ *
+ * La réponse est dans **sa** ligne d'amitié, celle qu'il possède : c'est lui
+ * qui a écrit `share_places` là-dedans. Interroger la mienne renverrait ce que
+ * moi je partage avec lui, qui n'a rien à voir.
+ *
+ * `false` explicite seulement : une ligne absente est déjà traitée en amont
+ * comme une rupture d'amitié, et une base pas encore migrée (colonne absente,
+ * donc `undefined`) doit continuer de se comporter comme avant.
+ */
+async function assertSharesWithMe(friendId, myUserId) {
+  const towardsMe = await Social.findFriendship(friendId, myUserId);
+  if (towardsMe?.share_places === false) {
+    throw new ApiError(403, "not_shared", "This friend does not share places");
+  }
+}
+
 class socialController {
   // POST /addfriend
   static async addFriend(req, res, next) {
@@ -120,6 +138,45 @@ class socialController {
     }
   }
 
+  /**
+   * PATCH /friendsettings?id=<friend_user_id>
+   *
+   * Les deux drapeaux par ami, écrits séparément : le client n'envoie que celui
+   * qu'on vient de basculer, ce qui évite qu'un écran chargé avec une valeur
+   * périmée réécrive l'autre au passage.
+   */
+  static async setFriendSettings(req, res, next) {
+    try {
+      const patch = {};
+      if (typeof req.body?.show_places === "boolean") {
+        patch.show_places = req.body.show_places;
+      }
+      if (typeof req.body?.share_places === "boolean") {
+        patch.share_places = req.body.share_places;
+      }
+      if (!Object.keys(patch).length) {
+        throw new ApiError(400, "missing_fields", "Nothing to update");
+      }
+
+      const row = await Social.setFriendSettings(
+        req.auth.payload.sub,
+        req.query.id,
+        patch,
+      );
+      if (!row) {
+        throw new ApiError(404, "not_found", "Friendship not found");
+      }
+
+      res.status(200).json({
+        id: req.query.id,
+        show_places: row.show_places,
+        share_places: row.share_places,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   // POST /pushtoken
   static async savePushToken(req, res, next) {
     try {
@@ -170,6 +227,11 @@ class socialController {
           // lui avez donné. L'app affiche le second s'il existe.
           name: user?.name || null,
           nickname: row.nickname || null,
+          // Les deux réglages voyagent avec l'ami : l'écran Social les affiche
+          // dans son menu sans un appel de plus par ligne. Une base pas encore
+          // migrée ne renvoie rien — d'où le repli sur `true`, l'état d'avant.
+          show_places: row.show_places !== false,
+          share_places: row.share_places !== false,
           created_at: row.created_at,
         };
       });
@@ -281,6 +343,9 @@ class socialController {
       if (!friendship) {
         throw new ApiError(403, "not_friends", "Not friends with this user");
       }
+      // Son partage est une autorisation, pas un filtre d'affichage : il vaut
+      // aussi ici, où l'on vient voir son profil exprès.
+      await assertSharesWithMe(friendId, userId);
 
       const places = await Social.getFriendPlaces(friendId);
       res.status(200).json(places);
@@ -300,8 +365,24 @@ class socialController {
   static async getAllFriendsPlaces(req, res, next) {
     try {
       const userId = req.auth.payload.sub;
-      const friendRows = await Social.getFriends(userId);
-      const friendIds = friendRows.map((row) => row.friend_id);
+      const [friendRows, sharingRows] = await Promise.all([
+        Social.getFriends(userId),
+        Social.getSharingTowards(userId),
+      ]);
+
+      // Deux conditions, et une seule des deux m'appartient. `show_places` est
+      // ma préférence — j'ai masqué cet ami de ma carte. `share_places` est la
+      // sienne — il ne me montre plus ses lieux. Un pin ne s'affiche que si les
+      // deux sont d'accord.
+      const sharesWithMe = new Set(
+        sharingRows
+          .filter((row) => row.share_places !== false)
+          .map((row) => row.user_id),
+      );
+      const friendIds = friendRows
+        .filter((row) => row.show_places !== false)
+        .map((row) => row.friend_id)
+        .filter((id) => sharesWithMe.has(id));
       if (!friendIds.length) return res.status(200).json([]);
 
       const [places, { data: users, error: usersError }] = await Promise.all([
@@ -339,6 +420,9 @@ class socialController {
       if (!friendship) {
         throw new ApiError(403, "not_friends", "Not friends with this user");
       }
+      // Couper le partage doit emporter les mémentos qu'il a laissés sur un
+      // lieu que j'ai copié, exactement comme le ferait une rupture d'amitié.
+      await assertSharesWithMe(friendId, userId);
 
       // Verify place belongs to friend
       const place = await Social.findPlaceByIdAndUser(placeId, friendId);

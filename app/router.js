@@ -17,6 +17,7 @@ import {
   RequestIdQuerySchema,
   FriendIdQuerySchema,
   FriendNicknameBodySchema,
+  FriendSettingsBodySchema,
   FriendPlacesQuerySchema,
   FriendNotesQuerySchema,
   PushTokenBodySchema,
@@ -139,6 +140,14 @@ router.patch(
   validate(FriendIdQuerySchema, "query"),
   validate(FriendNicknameBodySchema, "body"),
   socialController.setFriendNickname,
+);
+// Afficher ses lieux chez moi, partager les miens chez lui : deux drapeaux
+// portés par ma ligne d'amitié, donc écrits par la même route.
+router.patch(
+  "/friendsettings",
+  validate(FriendIdQuerySchema, "query"),
+  validate(FriendSettingsBodySchema, "body"),
+  socialController.setFriendSettings,
 );
 router.delete(
   "/removefriend",
